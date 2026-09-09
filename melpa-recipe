@@ -1,0 +1,4 @@
+(incio
+ :fetcher github
+ :repo "drlkf/incio.el"
+ :files ("incio.el" "incio-core.el" "incio-incident.el" "incio-resources.el" "incio-ui.el"))
