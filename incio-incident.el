@@ -29,6 +29,18 @@
 (defun incio-incident-severity-name (incident)
   (incio--alist-get 'name (incio-incident-severity incident)))
 
+(defun incio-incident-timestamp (incident label)
+  (incio--alist-get
+   'value
+   (incio--alist-get
+    'value
+    (seq-find (lambda (entry)
+                (equal label
+                       (incio--alist-get
+                        'name (incio--alist-get 'incident_timestamp entry))))
+              (incio--alist-get 'incident_timestamp_values
+                                (incio-incident-raw incident))))))
+
 (defun incio-incident-roles (incident)
   (mapcar (lambda (assignment)
             (cons (incio--alist-get 'name (incio--alist-get 'role assignment))
@@ -40,8 +52,10 @@
             (cons (incio--alist-get 'name (incio--alist-get 'custom_field entry))
                   (mapconcat (lambda (value)
                                (or (incio--alist-get 'name (incio--alist-get 'value_catalog_entry value))
+                                   (incio--alist-get 'value (incio--alist-get 'value_option value))
                                    (incio--alist-get 'value_text value)
-                                   (incio--alist-get 'value value)
+                                   (incio--alist-get 'value_numeric value)
+                                   (incio--alist-get 'value_link value)
                                    ""))
                              (incio--alist-get 'values entry) ", ")))
           (incio--alist-get 'custom_field_entries (incio-incident-raw incident))))

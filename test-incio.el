@@ -31,6 +31,16 @@
     (should (equal nil (incio-incident-roles incident)))
     (should (equal nil (incio-incident-custom-fields incident)))))
 
+(ert-deftest incio-test-reads-nested-timestamp-value ()
+  (let ((incident
+         (incio-incident-create
+          :raw '((incident_timestamp_values
+                  . (((incident_timestamp . ((name . "Declared at")))
+                      (value . ((value . "2026-09-10T15:28:44.577Z"))))))))))
+    (should (equal "2026-09-10T15:28:44.577Z"
+                   (incio-incident-timestamp incident "Declared at")))
+    (should-not (incio-incident-timestamp incident "Resolved at"))))
+
 (ert-deftest incio-test-api-with-fields-runs-once ()
   (let ((calls 0))
     (cl-letf (((symbol-function 'call-process-region)

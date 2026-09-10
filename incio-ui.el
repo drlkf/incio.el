@@ -44,7 +44,8 @@
       incio--incident))
 
 (defun incio--incident-time (value)
-  (when value (format-time-string "%F %R" (date-to-time value))))
+  (when (stringp value)
+    (format-time-string "%F %R" (date-to-time value))))
 
 (defun incio--insert-detail (label value)
   (when value
@@ -64,13 +65,13 @@
             (format "%s\n\n" (or (incio-incident-name incident) "")))
     (incio--insert-detail "Declared"
                           (incio--incident-time
-                           (incio--alist-get
-                            'value
-                            (seq-find (lambda (entry)
-                                        (equal "Declared at"
-                                               (incio--alist-get 'name
-                                                                 (incio--alist-get 'incident_timestamp entry))))
-                                      (incio--alist-get 'incident_timestamp_values raw)))))
+                           (incio-incident-timestamp incident "Declared at")))
+    (incio--insert-detail "Impact started"
+                          (incio--incident-time
+                           (incio-incident-timestamp incident "Impact started at")))
+    (incio--insert-detail "Resolved"
+                          (incio--incident-time
+                           (incio-incident-timestamp incident "Resolved at")))
     (incio--insert-detail "Last activity"
                           (incio--incident-time (incio--alist-get 'last_activity_at raw)))
     (incio--insert-detail "Type" (incio--alist-get 'name (incio--alist-get 'incident_type raw)))
