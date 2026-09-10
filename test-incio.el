@@ -25,4 +25,19 @@
           (incio-incident--list-args '("live") '("sev-1")
                                      "created_at_newest_first"))))
 
+(ert-deftest incio-test-exposes-incident-details ()
+  (let ((incident (incio-incident-create :severity '((name . "Major")))))
+    (should (equal "Major" (incio-incident-severity-name incident)))
+    (should (equal nil (incio-incident-roles incident)))
+    (should (equal nil (incio-incident-custom-fields incident)))))
+
+(ert-deftest incio-test-api-with-fields-runs-once ()
+  (let ((calls 0))
+    (cl-letf (((symbol-function 'call-process-region)
+               (lambda (&rest args)
+                 (setq calls (1+ calls))
+                 0)))
+      (incio--api "POST" "/test" '((name . "value")))
+      (should (= 1 calls)))))
+
 ;;; test-incio.el ends here

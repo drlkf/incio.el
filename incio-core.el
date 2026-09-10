@@ -44,20 +44,21 @@
 (defun incio--api (method path &optional fields)
   "Call METHOD and PATH through `inc api'.  FIELDS is an alist body."
   (let ((args (list "api" method path)))
-    (when fields
-      (setq args (append args (list "--input" "-")))
-      (let ((process-connection-type nil)
-            (coding-system-for-write 'utf-8))
-        (with-temp-buffer
-          (insert (json-encode fields))
-          (let ((status (apply #'call-process-region (point-min) (point-max)
-                               incio-inc-executable t t nil args)))
-            (unless (eq status 0)
-              (signal 'incio-error (list (buffer-string))))
-            (goto-char (point-min))
-            (let ((json-object-type 'alist) (json-array-type 'list)
-                  (json-key-type 'symbol) (json-false nil) (json-null nil))
-              (json-read)))))
+    (if fields
+        (progn
+          (setq args (append args (list "--input" "-")))
+          (let ((process-connection-type nil)
+                (coding-system-for-write 'utf-8))
+            (with-temp-buffer
+              (insert (json-encode fields))
+              (let ((status (apply #'call-process-region (point-min) (point-max)
+                                   incio-inc-executable t t nil args)))
+                (unless (eq status 0)
+                  (signal 'incio-error (list (buffer-string))))
+                (goto-char (point-min))
+                (let ((json-object-type 'alist) (json-array-type 'list)
+                      (json-key-type 'symbol) (json-false nil) (json-null nil))
+                  (json-read))))))
       (apply #'incio--run-json args))))
 
 (defun incio--alist-get (key object &optional default)

@@ -26,6 +26,26 @@
      :role-assignments (incio--alist-get 'incident_role_assignments object)
      :raw object)))
 
+(defun incio-incident-severity-name (incident)
+  (incio--alist-get 'name (incio-incident-severity incident)))
+
+(defun incio-incident-roles (incident)
+  (mapcar (lambda (assignment)
+            (cons (incio--alist-get 'name (incio--alist-get 'role assignment))
+                  (incio--alist-get 'name (incio--alist-get 'assignee assignment))))
+          (incio-incident-role-assignments incident)))
+
+(defun incio-incident-custom-fields (incident)
+  (mapcar (lambda (entry)
+            (cons (incio--alist-get 'name (incio--alist-get 'custom_field entry))
+                  (mapconcat (lambda (value)
+                               (or (incio--alist-get 'name (incio--alist-get 'value_catalog_entry value))
+                                   (incio--alist-get 'value_text value)
+                                   (incio--alist-get 'value value)
+                                   ""))
+                             (incio--alist-get 'values entry) ", ")))
+          (incio--alist-get 'custom_field_entries (incio-incident-raw incident))))
+
 (defun incio-incident--list-args (status-categories severity-ids sort-by)
   "Build CLI arguments for incident list filters."
   (append '("incidents" "list")
