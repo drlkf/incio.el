@@ -65,11 +65,14 @@
   (let ((inhibit-read-only t)
         (raw (incio-incident-raw incident)))
     (erase-buffer)
-    (insert (propertize (format "%s  %s  %s\n\n"
-                                (incio-incident-reference incident)
-                                (or (incio-incident-status-name incident) "")
-                                (or (incio-incident-severity-name incident) ""))
-                        'face 'bold)
+     (insert (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
+             "  "
+             (propertize (or (incio-incident-status-name incident) "")
+                         'face (incio-status-face (incio-incident-status-category incident)))
+             "  "
+             (propertize (or (incio-incident-severity-name incident) "")
+                         'face (incio-severity-face (incio-incident-severity-name incident)))
+             "\n\n"
             (format "%s\n\n" (or (incio-incident-name incident) "")))
     (incio--insert-detail "Declared"
                           (incio--incident-time
@@ -99,9 +102,11 @@
     (setq tabulated-list-entries
           (mapcar (lambda (incident)
                     (list incident
-                          (vector (or (incio-incident-reference incident) "")
-                                  (or (incio-incident-status-name incident) "")
-                                  (or (incio-incident-severity-name incident) "")
+                          (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
+                                  (propertize (or (incio-incident-status-name incident) "")
+                                              'face (incio-status-face (incio-incident-status-category incident)))
+                                  (propertize (or (incio-incident-severity-name incident) "")
+                                              'face (incio-severity-face (incio-incident-severity-name incident)))
                                   (or (incio-incident-name incident) ""))))
                   incidents))
     (tabulated-list-print t)))

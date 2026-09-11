@@ -34,7 +34,13 @@
   (let ((incident (incio-incident-create :severity '((name . "Major")))))
     (should (equal "Major" (incio-incident-severity-name incident)))
     (should (equal nil (incio-incident-roles incident)))
-    (should (equal nil (incio-incident-custom-fields incident)))))
+     (should (equal nil (incio-incident-custom-fields incident)))))
+
+(ert-deftest incio-test-selects-status-and-severity-faces ()
+  (should (eq 'incio-status-live (incio-status-face "live")))
+  (should (eq 'incio-status-default (incio-status-face "unknown")))
+  (should (eq 'incio-severity-major (incio-severity-face "Major")))
+  (should (eq 'incio-severity-default (incio-severity-face "P3"))))
 
 (ert-deftest incio-test-reads-nested-timestamp-value ()
   (let ((incident

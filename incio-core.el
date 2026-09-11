@@ -11,6 +11,31 @@
   :group 'tools
   :prefix "incio-")
 
+(defface incio-reference '((t (:inherit font-lock-constant-face))) "Face for incident references." :group 'incio)
+(defface incio-status-default '((t (:inherit default))) "Fallback status face." :group 'incio)
+(defface incio-status-triage '((t (:inherit warning))) "Face for triage status." :group 'incio)
+(defface incio-status-live '((t (:inherit error))) "Face for live status." :group 'incio)
+(defface incio-status-paused '((t (:inherit shadow))) "Face for paused status." :group 'incio)
+(defface incio-status-learning '((t (:inherit font-lock-keyword-face))) "Face for learning status." :group 'incio)
+(defface incio-status-closed '((t (:inherit success))) "Face for closed status." :group 'incio)
+(defface incio-status-declined '((t (:inherit shadow))) "Face for declined status." :group 'incio)
+(defface incio-status-merged '((t (:inherit shadow))) "Face for merged status." :group 'incio)
+(defface incio-severity-critical '((t (:inherit error))) "Face for critical severity." :group 'incio)
+(defface incio-severity-major '((t (:inherit warning))) "Face for major severity." :group 'incio)
+(defface incio-severity-minor '((t (:inherit font-lock-doc-face))) "Face for minor severity." :group 'incio)
+(defface incio-severity-default '((t (:inherit default))) "Fallback severity face." :group 'incio)
+(defcustom incio-severity-faces
+  '(("critical" . incio-severity-critical) ("major" . incio-severity-major)
+    ("minor" . incio-severity-minor))
+  "Map lowercased severity names to faces."
+  :type '(alist :key-type string :value-type face) :group 'incio)
+(defun incio-status-face (category)
+  (let* ((name (downcase (or category "")))
+         (face (intern (format "incio-status-%s" name))))
+    (if (facep face) face 'incio-status-default)))
+(defun incio-severity-face (name)
+  (or (cdr (assoc (downcase (or name "")) incio-severity-faces)) 'incio-severity-default))
+
 (defcustom incio-inc-executable "inc"
   "Path to the `inc' executable."
   :type 'string :group 'incio)
