@@ -4,6 +4,15 @@
 
 (require 'incio-core)
 
+(defvar incio-resource-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map special-mode-map)
+    (define-key map (kbd "?") #'incio-help)
+    map))
+
+(define-derived-mode incio-resource-mode special-mode "Incio-Resource"
+  "Major mode for incident.io resource lists.")
+
 (defun incio-alert-fetch-list (&optional status)
   "Return alerts, optionally filtered by STATUS."
   (apply #'incio--run-json
@@ -33,7 +42,7 @@
                  ('schedules (incio-schedule-fetch-list))))
          (buffer (get-buffer-create (format "*incio-%s*" kind))))
     (with-current-buffer buffer
-      (special-mode)
+      (incio-resource-mode)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (dolist (object data)

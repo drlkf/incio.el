@@ -2,6 +2,11 @@
 
 (require 'ert)
 (require 'incio-incident)
+(require 'incio-ui)
+
+(ert-deftest incio-test-help-renders-mode-bindings ()
+  (should (string-match-p "incio-incident-visit"
+                          (incio--help-text 'incio-incident-list-mode-map))))
 
 (ert-deftest incio-test-parses-incident ()
   (let ((incident

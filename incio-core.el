@@ -66,6 +66,18 @@
   (let ((value (alist-get key object)))
     (if value value default)))
 
+(defun incio--help-text (map-symbol)
+  (substitute-command-keys (format "\\{%s}" map-symbol)))
+
+(defun incio-help ()
+  "Toggle the list of keys available in the current view."
+  (interactive)
+  (if-let ((window (get-buffer-window "*incio-help*")))
+      (quit-window nil window)
+    (with-help-window "*incio-help*"
+      (princ (incio--help-text
+              (intern (format "%s-map" major-mode)))))))
+
 (provide 'incio-core)
 
 ;;; incio-core.el ends here

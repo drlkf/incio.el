@@ -20,6 +20,7 @@
     (define-key map (kbd "u") #'incio-incident-post-update-at-point)
     (define-key map (kbd "F") #'incio-incident-follow-up-at-point)
     (define-key map (kbd "w") #'incio-incident-browse)
+    (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
     map))
 
