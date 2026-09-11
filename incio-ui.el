@@ -5,13 +5,14 @@
 (require 'browse-url)
 (require 'goto-addr)
 (require 'seq)
+(require 'tabulated-list)
 (require 'incio-incident)
 
 (defvar-local incio--incidents nil)
 (defvar-local incio--incident nil)
 (defvar incio-incident-list-mode-map
   (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map special-mode-map)
+    (set-keymap-parent map tabulated-list-mode-map)
     (define-key map (kbd "RET") #'incio-incident-visit)
     (define-key map (kbd "g") #'incio-refresh)
     (define-key map (kbd "r") #'incio-refresh)
@@ -30,9 +31,15 @@
     (define-key map (kbd "RET") nil)
     map))
 
-(define-derived-mode incio-incident-list-mode special-mode "Incio-Incidents"
+(define-derived-mode incio-incident-list-mode tabulated-list-mode "Incio-Incidents"
   "Major mode for incident.io incidents."
-  (setq-local truncate-lines t)
+  (setq-local tabulated-list-format
+              [ ("Reference" 12 t)
+                ("Status" 14 t)
+                ("Severity" 10 t)
+                ("Name" 0 t) ])
+  (setq-local tabulated-list-padding 1)
+  (tabulated-list-init-header)
   (hl-line-mode 1))
 
 (define-derived-mode incio-incident-mode special-mode "Incio-Incident"
@@ -41,7 +48,7 @@
   (goto-address-mode))
 
 (defun incio--incident-at-point ()
-  (or (get-text-property (line-beginning-position) 'incio-incident)
+  (or (tabulated-list-get-id)
       incio--incident))
 
 (defun incio--incident-time (value)
@@ -89,18 +96,15 @@
 
 (defun incio--render-incidents (incidents)
   (let ((inhibit-read-only t))
-    (erase-buffer)
-    (dolist (incident incidents)
-      (insert (propertize
-               (format "%-9s %-12s %-10s %s\n"
-                       (or (incio-incident-reference incident) "")
-                       (or (incio-incident-status-name incident) "")
-                       (or (incio--alist-get 'name
-                                             (incio-incident-severity incident))
-                           "")
-                       (or (incio-incident-name incident) ""))
-               'incio-incident incident)))
-    (goto-char (point-min))))
+    (setq tabulated-list-entries
+          (mapcar (lambda (incident)
+                    (list incident
+                          (vector (or (incio-incident-reference incident) "")
+                                  (or (incio-incident-status-name incident) "")
+                                  (or (incio-incident-severity-name incident) "")
+                                  (or (incio-incident-name incident) ""))))
+                  incidents))
+    (tabulated-list-print t)))
 
 (defun incio-incident-refresh ()
   (interactive)

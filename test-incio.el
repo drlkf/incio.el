@@ -44,7 +44,23 @@
                       (value . ((value . "2026-09-10T15:28:44.577Z"))))))))))
     (should (equal "2026-09-10T15:28:44.577Z"
                    (incio-incident-timestamp incident "Declared at")))
-    (should-not (incio-incident-timestamp incident "Resolved at"))))
+     (should-not (incio-incident-timestamp incident "Resolved at"))))
+
+(ert-deftest incio-test-incident-columns-stay-aligned ()
+  (let ((incidents
+         (list (incio-incident-create
+                :reference "INC-1" :status-name "Live" :severity '((name . "Major"))
+                :name "First")
+               (incio-incident-create
+                :reference "INC-123456789012345" :status-name "Live"
+                :severity '((name . "Major")) :name "Second"))))
+    (with-temp-buffer
+      (incio-incident-list-mode)
+      (incio--render-incidents incidents)
+      (goto-char (point-min))
+      (should (eq (tabulated-list-get-id) (car incidents)))
+      (forward-line 1)
+      (should (eq (tabulated-list-get-id) (cadr incidents))))))
 
 (ert-deftest incio-test-api-with-fields-runs-once ()
   (let ((calls 0))
