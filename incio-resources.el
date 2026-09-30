@@ -13,6 +13,8 @@
 (define-derived-mode incio-resource-mode special-mode "Incio-Resource"
   "Major mode for incident.io resource lists.")
 
+(incio--evilify 'incio-resource-mode incio-resource-mode-map)
+
 (defun incio-alert-fetch-list (&optional status)
   "Return alerts, optionally filtered by STATUS."
   (apply #'incio--run-json

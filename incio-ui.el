@@ -47,6 +47,9 @@
   (use-local-map incio-incident-mode-map)
   (goto-address-mode))
 
+(incio--evilify 'incio-incident-list-mode incio-incident-list-mode-map)
+(incio--evilify 'incio-incident-mode incio-incident-mode-map)
+
 (defun incio--incident-at-point ()
   (or (tabulated-list-get-id)
       incio--incident))

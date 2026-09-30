@@ -8,6 +8,17 @@
   (should (string-match-p "incio-incident-visit"
                           (incio--help-text 'incio-incident-list-mode-map))))
 
+(ert-deftest incio-test-evil-keeps-mode-keys ()
+  (skip-unless (require 'evil nil t))
+  (let ((state (if (fboundp 'evil-evilified-state) 'evilified 'motion)))
+    (should (eq state (evil-initial-state 'incio-incident-list-mode)))
+    (with-temp-buffer
+      (incio-incident-mode)
+      (evil-local-mode 1)
+      (should (eq 'incio-incident-set-status-at-point (key-binding "s")))
+      (should (eq 'incio-incident-browse (key-binding "w")))
+      (should (eq 'incio-refresh (key-binding "gr"))))))
+
 (ert-deftest incio-test-parses-incident ()
   (let ((incident
          (incio-incident--parse

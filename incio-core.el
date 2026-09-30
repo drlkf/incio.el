@@ -94,6 +94,23 @@
 (defun incio--help-text (map-symbol)
   (substitute-command-keys (format "\\{%s}" map-symbol)))
 
+(declare-function evil-set-initial-state "evil-core")
+(declare-function evil-define-key* "evil-core")
+
+(defun incio--evilify (mode map)
+  "Start MODE in an evil state where MAP's own keys stay available.
+Uses Spacemacs' evilified state when present, `motion' otherwise."
+  (with-eval-after-load 'evil
+    (let ((state (if (fboundp 'evil-evilified-state) 'evilified 'motion)))
+      (evil-set-initial-state mode state)
+      (map-keymap-internal
+       (lambda (key def)
+         (when (and def (not (keymapp def)) (not (eq key ?g)))
+           (evil-define-key* state map (vector key) def)))
+       map)
+      (when-let ((refresh (lookup-key map "g")))
+        (evil-define-key* state map "gr" refresh)))))
+
 (defun incio-help ()
   "Toggle the list of keys available in the current view."
   (interactive)
