@@ -164,11 +164,19 @@ Uses Spacemacs' evilified state when present, `motion' otherwise."
   "Toggle the list of keys available in the current view."
   (interactive)
   (if-let ((window (get-buffer-window "*incio-help*")))
-      (quit-window nil window)
-    (let ((text (incio--help-text (intern (format "%s-map" major-mode)))))
-      (with-help-window "*incio-help*"
-        (with-current-buffer standard-output
-          (insert text))))))
+      (delete-window window)
+    (let ((text (incio--help-text (intern (format "%s-map" major-mode))))
+          (buffer (get-buffer-create "*incio-help*")))
+      (with-current-buffer buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert text))
+        (special-mode)
+        (goto-char (point-min)))
+      (display-buffer buffer
+                      '(display-buffer-in-side-window
+                        (side . bottom)
+                        (window-height . fit-window-to-buffer))))))
 
 (provide 'incio-core)
 
