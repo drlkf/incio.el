@@ -37,6 +37,19 @@ Press `RET` on an incident to open its detail view. It shows the summary,
 severity, timestamps, type, visibility, mode, roles, custom fields, Slack
 channel, and permalink. Detail views support the same keys, except `RET`.
 
+Schedule list keys: `RET` opens the schedule's on-call entries, `r` / `g`
+refresh, `q` quits. In a schedule view:
+
+| Key | Action |
+| --- | --- |
+| `]` | Next window |
+| `[` | Previous window |
+| `.` | Back to now |
+| `r` / `g` | Refresh |
+
+The window spans `incio-schedule-window-days` (default 7); the current shift
+is shown in bold.
+
 All mutating actions ask for confirmation where appropriate. The package uses
 `inc api` for incident.io operations not exposed as typed CLI commands.
 

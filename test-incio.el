@@ -171,6 +171,54 @@
       (incio--api "POST" "/test" '((name . "value")))
       (should (= 1 calls)))))
 
+(require 'incio-resources)
+
+(ert-deftest incio-test-schedule-navigates-windows ()
+  (let ((incio-schedule-window-days 7)
+        calls)
+    (cl-letf (((symbol-function 'incio--run-json)
+               (lambda (&rest args)
+                 (push args calls)
+                 '((final . (((rotation_id . "rot-1")
+                              (user . ((name . "Bob")))
+                              (start_at . "2026-10-22T08:00:00Z")
+                              (end_at . "2026-10-23T08:00:00Z"))
+                             ((rotation_id . "rot-1")
+                              (user . ((name . "Alice")))
+                              (start_at . "2026-10-21T08:00:00Z")
+                              (end_at . "2026-10-22T08:00:00Z"))))))))
+      (with-temp-buffer
+        (incio-schedule-mode)
+        (setq incio--schedule '((id . "sch-1") (name . "Primary")
+                                (config . ((rotations . (((id . "rot-1")
+                                                          (name . "Weekly"))))))))
+        (setq incio--schedule-from (date-to-time "2026-10-21T00:00:00Z"))
+        (incio-schedule-refresh)
+        (should (equal '("schedules" "entries" "sch-1"
+                         "--from" "2026-10-21T00:00:00Z"
+                         "--until" "2026-10-28T00:00:00Z")
+                       (car calls)))
+        (goto-char (point-min))
+        (should (string-match-p "Alice.*Weekly"
+                                (buffer-substring (point) (line-end-position))))
+        (incio-schedule-next)
+        (should (equal "2026-10-28T00:00:00Z" (nth 4 (car calls))))
+        (incio-schedule-previous)
+        (incio-schedule-previous)
+        (should (equal "2026-10-14T00:00:00Z" (nth 4 (car calls))))))))
+
+(ert-deftest incio-test-schedule-list-renders ()
+  (cl-letf (((symbol-function 'incio--run-json)
+             (lambda (&rest _) '(((id . "sch-1") (name . "Primary")
+                                  (timezone . "Europe/Paris"))))))
+    (with-temp-buffer
+      (incio-schedule-list-mode)
+      (incio-schedule-refresh)
+      (goto-char (point-min))
+      (should (equal "sch-1" (alist-get 'id (tabulated-list-get-id))))
+      (should (eq 'incio-schedule-next
+                  (lookup-key incio-schedule-mode-map "]"))))))
+
 ;;; test-incio.el ends here
 
 (ert-deftest incio-test-set-custom-field-payload ()

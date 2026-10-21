@@ -103,7 +103,9 @@
     ("Incident attributes" incio-incident-set-title-at-point
      incio-incident-set-summary-at-point incio-incident-set-severity-at-point
      incio-incident-set-timestamp-at-point
-     incio-incident-set-custom-field-at-point))
+     incio-incident-set-custom-field-at-point)
+    ("Schedules" incio-schedule-visit incio-schedule-refresh
+     incio-schedule-next incio-schedule-previous incio-schedule-now))
   "Sections of the help buffer, as (TITLE COMMAND...).")
 
 (defun incio--help-keys (command map)
