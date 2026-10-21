@@ -99,7 +99,11 @@
      incio-incident-assign-at-point incio-incident-ack-at-point
      incio-incident-reject-at-point incio-incident-merge-at-point
      incio-incident-close-at-point incio-incident-post-update-at-point
-     incio-incident-follow-up-at-point))
+     incio-incident-follow-up-at-point)
+    ("Incident attributes" incio-incident-set-title-at-point
+     incio-incident-set-summary-at-point incio-incident-set-severity-at-point
+     incio-incident-set-timestamp-at-point
+     incio-incident-set-custom-field-at-point))
   "Sections of the help buffer, as (TITLE COMMAND...).")
 
 (defun incio--help-keys (command map)

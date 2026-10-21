@@ -172,3 +172,14 @@
       (should (= 1 calls)))))
 
 ;;; test-incio.el ends here
+
+(ert-deftest incio-test-set-custom-field-payload ()
+  (let (sent)
+    (cl-letf (((symbol-function 'incio--api)
+               (lambda (_method path fields) (setq sent (cons path fields)))))
+      (incio-incident-set-custom-field
+       (incio-incident-create :id "01INC") "cf-1"
+       (list (incio-custom-field-free-value '((field_type . "numeric")) "4"))))
+    (should (equal "/v2/incidents/01INC/actions/edit" (car sent)))
+    (should (equal "{\"incident\":{\"custom_field_entries\":[{\"custom_field_id\":\"cf-1\",\"values\":[{\"value_numeric\":\"4\"}]}]},\"notify_incident_channel\":true}"
+                   (json-encode (cdr sent))))))

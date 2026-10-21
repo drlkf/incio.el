@@ -122,6 +122,59 @@
       . [((incident_role_id . ,role-id)
           (assignee . ((id . ,user-id))))]))))
 
+(defun incio-severities ()
+  "Return the list of severities."
+  (incio--run-json "severities" "list" "--limit" "0"))
+
+(defun incio-incident-timestamps ()
+  "Return the list of incident timestamp definitions."
+  (incio--alist-get 'incident_timestamps (incio--api "GET" "/v2/incident_timestamps")))
+
+(defun incio-custom-fields ()
+  "Return the list of custom fields."
+  (incio--run-json "custom-fields" "list" "--limit" "0"))
+
+(defun incio-custom-field-choices (field)
+  "Return (NAME . VALUE) choices for select FIELD, or nil for free input.
+VALUE is an alist suitable for a custom field entry value."
+  (cond
+   ((incio--alist-get 'catalog_type_id field)
+    (mapcar (lambda (entry)
+              (cons (incio--alist-get 'name entry)
+                    `((value_catalog_entry_id . ,(incio--alist-get 'id entry)))))
+            (incio--run-json "catalog" "entries" "list" "--limit" "0"
+                             "--type-id" (incio--alist-get 'catalog_type_id field))))
+   ((member (incio--alist-get 'field_type field) '("single_select" "multi_select"))
+    (mapcar (lambda (option)
+              (cons (incio--alist-get 'value option)
+                    `((value_option_id . ,(incio--alist-get 'id option)))))
+            (incio--alist-get
+             'custom_field_options
+             (incio--api "GET" (concat "/v1/custom_field_options?page_size=250&custom_field_id="
+                                       (incio--alist-get 'id field))))))))
+
+(defun incio-custom-field-free-value (field input)
+  "Return the custom field entry value for FIELD from free-text INPUT."
+  (pcase (incio--alist-get 'field_type field)
+    ("numeric" `((value_numeric . ,input)))
+    ("link" `((value_link . ,input)))
+    (_ `((value_text . ,input)))))
+
+(defun incio-incident-set-custom-field (incident field-id values)
+  "Set custom field FIELD-ID on INCIDENT to the list of entry VALUES."
+  (incio-incident--edit
+   incident
+   `((custom_field_entries
+      . [((custom_field_id . ,field-id)
+          (values . ,(vconcat values)))]))))
+
+(defun incio-incident-set-timestamp (incident timestamp-id value)
+  "Set INCIDENT timestamp TIMESTAMP-ID to ISO 8601 VALUE."
+  (incio-incident--edit
+   incident
+   `((incident_timestamp_values
+      . [((incident_timestamp_id . ,timestamp-id) (value . ,value))]))))
+
 (defun incio-incident-ack (incident)
   "Acknowledge INCIDENT by setting its status to the live category."
   (incio-incident-set-status

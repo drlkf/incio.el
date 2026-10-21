@@ -24,14 +24,18 @@ Incident list keys:
 | `c` | Close incident |
 | `u` | Post update |
 | `F` | Add follow-up |
+| `t` | Set title |
+| `S` | Set summary |
+| `v` | Set severity |
+| `T` | Set timestamp |
+| `f` | Set custom field |
 | `w` | Open permalink |
 | `r` / `g` | Refresh |
 | `q` | Quit |
 
 Press `RET` on an incident to open its detail view. It shows the summary,
 severity, timestamps, type, visibility, mode, roles, custom fields, Slack
-channel, and permalink. Detail views support `s`, `a`, `A`, `R`, `m`, `c`,
-`u`, `F`, `w`, `g`, and `q` as well.
+channel, and permalink. Detail views support the same keys, except `RET`.
 
 All mutating actions ask for confirmation where appropriate. The package uses
 `inc api` for incident.io operations not exposed as typed CLI commands.

@@ -24,6 +24,11 @@
     (define-key map (kbd "c") #'incio-incident-close-at-point)
     (define-key map (kbd "u") #'incio-incident-post-update-at-point)
     (define-key map (kbd "F") #'incio-incident-follow-up-at-point)
+    (define-key map (kbd "t") #'incio-incident-set-title-at-point)
+    (define-key map (kbd "S") #'incio-incident-set-summary-at-point)
+    (define-key map (kbd "v") #'incio-incident-set-severity-at-point)
+    (define-key map (kbd "T") #'incio-incident-set-timestamp-at-point)
+    (define-key map (kbd "f") #'incio-incident-set-custom-field-at-point)
     (define-key map (kbd "w") #'incio-incident-browse)
     (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
@@ -72,14 +77,14 @@
   (let ((inhibit-read-only t)
         (raw (incio-incident-raw incident)))
     (erase-buffer)
-     (insert (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
-             "  "
-             (propertize (or (incio-incident-status-name incident) "")
-                         'face (incio-status-face (incio-incident-status-category incident)))
-             "  "
-             (propertize (or (incio-incident-severity-name incident) "")
-                         'face (incio-severity-face (incio-incident-severity-name incident)))
-             "\n\n"
+    (insert (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
+            "  "
+            (propertize (or (incio-incident-status-name incident) "")
+                        'face (incio-status-face (incio-incident-status-category incident)))
+            "  "
+            (propertize (or (incio-incident-severity-name incident) "")
+                        'face (incio-severity-face (incio-incident-severity-name incident)))
+            "\n\n"
             (format "%s\n\n" (or (incio-incident-name incident) "")))
     (incio--insert-detail "Declared"
                           (incio--incident-time
@@ -175,13 +180,87 @@
            (role (seq-find (lambda (r) (equal role-name (incio--alist-get 'name r))) roles))
            (users (incio-users))
            (user-names (mapcar (lambda (u) (format "%s <%s>"
-                                                    (incio--alist-get 'name u)
-                                                    (incio--alist-get 'email u)))
+                                                   (incio--alist-get 'name u)
+                                                   (incio--alist-get 'email u)))
                                users))
            (user-name (completing-read "Assignee: " user-names nil t))
            (user (nth (seq-position user-names user-name) users)))
       (when (yes-or-no-p (format "Assign %s to %s? " role-name user-name))
         (incio-incident-assign-role incident (incio--alist-get 'id role) (incio--alist-get 'id user))
+        (incio-refresh)))))
+
+(defun incio--edit-at-point (incident description fields)
+  (when (yes-or-no-p (format "Set %s on %s? " description
+                             (incio-incident-reference incident)))
+    (incio-incident--edit incident fields)
+    (incio-refresh)))
+
+(defun incio-incident-set-title-at-point ()
+  (interactive)
+  (let ((incident (incio--incident-at-point)))
+    (unless incident (user-error "No incident on this line"))
+    (let ((name (read-string "Title: " (incio-incident-name incident))))
+      (incio--edit-at-point incident "title" `((name . ,name))))))
+
+(defun incio-incident-set-summary-at-point ()
+  (interactive)
+  (let ((incident (incio--incident-at-point)))
+    (unless incident (user-error "No incident on this line"))
+    (let ((summary (read-string "Summary: " (incio-incident-summary incident))))
+      (incio--edit-at-point incident "summary" `((summary . ,summary))))))
+
+(defun incio-incident-set-severity-at-point ()
+  (interactive)
+  (let ((incident (incio--incident-at-point)))
+    (unless incident (user-error "No incident on this line"))
+    (let* ((severities (incio-severities))
+           (name (completing-read "Severity: "
+                                  (mapcar (lambda (s) (incio--alist-get 'name s)) severities)
+                                  nil t nil nil (incio-incident-severity-name incident)))
+           (severity (seq-find (lambda (s) (equal name (incio--alist-get 'name s))) severities)))
+      (incio--edit-at-point incident (format "severity %s" name)
+                            `((severity_id . ,(incio--alist-get 'id severity)))))))
+
+(defun incio-incident-set-timestamp-at-point ()
+  (interactive)
+  (let ((incident (incio--incident-at-point)))
+    (unless incident (user-error "No incident on this line"))
+    (let* ((timestamps (incio-incident-timestamps))
+           (name (completing-read "Timestamp: "
+                                  (mapcar (lambda (s) (incio--alist-get 'name s)) timestamps)
+                                  nil t))
+           (timestamp (seq-find (lambda (s) (equal name (incio--alist-get 'name s))) timestamps))
+           (value (read-string (format "%s (ISO 8601): " name)
+                               (or (incio-incident-timestamp incident name)
+                                   (format-time-string "%FT%T%:z")))))
+      (date-to-time value)
+      (when (yes-or-no-p (format "Set %s to %s? " name value))
+        (incio-incident-set-timestamp incident (incio--alist-get 'id timestamp) value)
+        (incio-refresh)))))
+
+(defun incio-incident-set-custom-field-at-point ()
+  (interactive)
+  (let ((incident (incio--incident-at-point)))
+    (unless incident (user-error "No incident on this line"))
+    (let* ((fields (incio-custom-fields))
+           (name (completing-read "Custom field: "
+                                  (mapcar (lambda (f) (incio--alist-get 'name f)) fields)
+                                  nil t))
+           (field (seq-find (lambda (f) (equal name (incio--alist-get 'name f))) fields))
+           (current (cdr (assoc name (incio-incident-custom-fields incident))))
+           (choices (incio-custom-field-choices field))
+           (values
+            (cond
+             ((equal "multi_select" (incio--alist-get 'field_type field))
+              (mapcar (lambda (choice) (cdr (assoc choice choices)))
+                      (completing-read-multiple (format "%s: " name) choices nil t current)))
+             (choices
+              (list (cdr (assoc (completing-read (format "%s: " name) choices nil t nil nil current)
+                                choices))))
+             (t (list (incio-custom-field-free-value
+                       field (read-string (format "%s: " name) current)))))))
+      (when (yes-or-no-p (format "Set %s on %s? " name (incio-incident-reference incident)))
+        (incio-incident-set-custom-field incident (incio--alist-get 'id field) (delq nil values))
         (incio-refresh)))))
 
 (defun incio-incident-ack-at-point ()
