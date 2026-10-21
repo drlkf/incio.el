@@ -5,6 +5,7 @@
 ;;; Code:
 
 (require 'json)
+(require 'seq)
 
 (defgroup incio nil
   "Interact with incident.io from Emacs."
@@ -91,8 +92,56 @@
   (let ((value (alist-get key object)))
     (if value value default)))
 
+(defvar incio-help-sections
+  '(("Navigation" incio-incident-visit incio-refresh incio-incident-browse
+     incio-help quit-window)
+    ("Incident actions" incio-incident-set-status-at-point
+     incio-incident-assign-at-point incio-incident-ack-at-point
+     incio-incident-reject-at-point incio-incident-merge-at-point
+     incio-incident-close-at-point incio-incident-post-update-at-point
+     incio-incident-follow-up-at-point))
+  "Sections of the help buffer, as (TITLE COMMAND...).")
+
+(defun incio--help-keys (command map)
+  "Keys for COMMAND in MAP, ignoring evil auxiliary state maps."
+  (seq-remove (lambda (key)
+                (and (symbolp (aref key 0))
+                     (string-suffix-p "-state" (symbol-name (aref key 0)))))
+              (where-is-internal command (list map))))
+
+(defun incio--help-section (title rows)
+  (when rows
+    (concat (propertize title 'face 'bold) "\n"
+            (mapconcat (lambda (row) (format "  %-14s %s\n" (car row) (cdr row)))
+                       rows "")
+            "\n")))
+
 (defun incio--help-text (map-symbol)
-  (substitute-command-keys (format "\\{%s}" map-symbol)))
+  (let* ((map (symbol-value map-symbol))
+         (known (apply #'append (mapcar #'cdr incio-help-sections)))
+         other)
+    (map-keymap
+     (lambda (key def)
+       (let ((keys (vector key)))
+         (when (and (not (consp key)) (commandp def) (not (keymapp def))
+                    (not (memq def known))
+                    (not (memq def '(digit-argument negative-argument)))
+                    (eq def (lookup-key map keys))
+                    (not (assoc (key-description keys) other)))
+           (push (cons (key-description keys) def) other))))
+     map)
+    (concat
+     (mapconcat
+      (lambda (section)
+        (incio--help-section
+         (car section)
+         (delq nil (mapcar (lambda (command)
+                             (when-let ((keys (incio--help-keys command map)))
+                               (cons (mapconcat #'key-description keys ", ")
+                                     command)))
+                           (cdr section)))))
+      incio-help-sections "")
+     (incio--help-section "Other" (nreverse other)))))
 
 (declare-function evil-set-initial-state "evil-core")
 (declare-function evil-define-key* "evil-core")
@@ -116,9 +165,10 @@ Uses Spacemacs' evilified state when present, `motion' otherwise."
   (interactive)
   (if-let ((window (get-buffer-window "*incio-help*")))
       (quit-window nil window)
-    (with-help-window "*incio-help*"
-      (princ (incio--help-text
-              (intern (format "%s-map" major-mode)))))))
+    (let ((text (incio--help-text (intern (format "%s-map" major-mode)))))
+      (with-help-window "*incio-help*"
+        (with-current-buffer standard-output
+          (insert text))))))
 
 (provide 'incio-core)
 

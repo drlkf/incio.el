@@ -16,6 +16,16 @@
   (should (string-match-p "incio-incident-merge-at-point"
                           (incio--help-text 'incio-incident-list-mode-map))))
 
+(ert-deftest incio-test-help-uses-calling-buffer-map ()
+  (with-temp-buffer
+    (incio-incident-mode)
+    (incio-help))
+  (let ((text (with-current-buffer "*incio-help*" (buffer-string))))
+    (should (string-match-p "^Navigation$" text))
+    (should (string-match-p "^Incident actions$" text))
+    (should (string-match-p "incio-incident-set-status-at-point" text))
+    (should-not (string-match-p "help-go-back" text))))
+
 (ert-deftest incio-test-evil-keeps-mode-keys ()
   (skip-unless (require 'evil nil t))
   (let ((state (if (fboundp 'evil-evilified-state) 'evilified 'motion)))
@@ -53,7 +63,7 @@
   (let ((incident (incio-incident-create :severity '((name . "Major")))))
     (should (equal "Major" (incio-incident-severity-name incident)))
     (should (equal nil (incio-incident-roles incident)))
-     (should (equal nil (incio-incident-custom-fields incident)))))
+    (should (equal nil (incio-incident-custom-fields incident)))))
 
 (ert-deftest incio-test-selects-status-and-severity-faces ()
   (should (eq 'incio-status-live (incio-status-face "live")))
@@ -69,7 +79,7 @@
                       (value . ((value . "2026-09-10T15:28:44.577Z"))))))))))
     (should (equal "2026-09-10T15:28:44.577Z"
                    (incio-incident-timestamp incident "Declared at")))
-     (should-not (incio-incident-timestamp incident "Resolved at"))))
+    (should-not (incio-incident-timestamp incident "Resolved at"))))
 
 (ert-deftest incio-test-incident-columns-stay-aligned ()
   (let ((incidents
@@ -105,8 +115,8 @@
       (incio-incident-assign-role incident "role-1" "user-1")
       (should (equal
                `((incident . ((incident_role_assignments
-                              . [((incident_role_id . "role-1")
-                                  (assignee . ((id . "user-1"))))])))
+                               . [((incident_role_id . "role-1")
+                                   (assignee . ((id . "user-1"))))])))
                  (notify_incident_channel . t))
                captured)))))
 
