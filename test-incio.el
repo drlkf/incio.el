@@ -219,6 +219,65 @@
       (should (eq 'incio-schedule-next
                   (lookup-key incio-schedule-mode-map "]"))))))
 
+(defconst incio-test--schedule
+  '((id . "sch-1") (name . "Primary")
+    (config . ((rotations . (((id . "rot-1") (name . "Old"))
+                             ((id . "rot-1") (name . "Weekly")
+                              (layers . (((id . "lay-1") (name . ""))))
+                              (users . (((id . "u-2") (name . "Carol")
+                                         (email . "carol@example.com")))))))))))
+
+(ert-deftest incio-test-schedule-calendar-and-overrides ()
+  (let ((process-environment (cons "TZ=UTC" process-environment))
+        (alice '((rotation_id . "rot-1") (user . ((id . "u-1") (name . "Alice")))
+                 (start_at . "2026-10-21T08:00:00Z") (end_at . "2026-10-22T08:00:00Z"))))
+    (set-time-zone-rule "UTC")
+    (unwind-protect
+        (cl-letf (((symbol-function 'incio--run-json)
+                   (lambda (&rest _) `((final . (,alice)) (overrides . (,alice))))))
+          (with-temp-buffer
+            (incio-schedule-mode)
+            (setq incio--schedule incio-test--schedule)
+            (setq incio--schedule-from (date-to-time "2026-10-21T12:00:00Z"))
+            (incio-schedule-refresh)
+            (goto-char (point-min))
+            (should (memq 'incio-schedule-override
+                          (get-text-property (next-single-property-change (point) 'face)
+                                             'face)))
+            (incio-schedule-toggle-calendar)
+            (should (equal ["Day" "Weekly"] (vconcat (mapcar #'car tabulated-list-format))))
+            (should (= incio-schedule-window-days (length tabulated-list-entries)))
+            (should (equal ["Wed 2026-10-21" "Alice"]
+                           (vconcat (mapcar #'substring-no-properties
+                                            (cadr (car tabulated-list-entries))))))
+            (should (equal ["Thu 2026-10-22" "Alice"]
+                           (vconcat (mapcar #'substring-no-properties
+                                            (cadr (cadr tabulated-list-entries))))))
+            (should (equal "" (aref (cadr (nth 2 tabulated-list-entries)) 1)))))
+      (set-time-zone-rule nil))))
+
+(ert-deftest incio-test-schedule-override-args ()
+  (let (calls)
+    (cl-letf (((symbol-function 'incio--run-json)
+               (lambda (&rest _)
+                 '((final . (((rotation_id . "rot-1") (user . ((id . "u-1") (name . "Alice")))
+                              (start_at . "2026-10-21T08:00:00Z")
+                              (end_at . "2026-10-22T08:00:00Z")))))))
+              ((symbol-function 'incio--run) (lambda (&rest args) (push args calls) ""))
+              ((symbol-function 'read-string) (lambda (_prompt default) default))
+              ((symbol-function 'yes-or-no-p) #'always))
+      (with-temp-buffer
+        (incio-schedule-mode)
+        (setq incio--schedule incio-test--schedule)
+        (setq incio--schedule-from (date-to-time "2026-10-21T00:00:00Z"))
+        (incio-schedule-refresh)
+        (goto-char (point-min))
+        (incio-schedule-override-at-point)
+        (should (equal '("schedules" "override" "--schedule-id" "sch-1"
+                         "--rotation-id" "rot-1" "--layer-id" "lay-1" "--user" "u-2"
+                         "--start" "2026-10-21T08:00:00Z" "--end" "2026-10-22T08:00:00Z")
+                       (car calls)))))))
+
 ;;; test-incio.el ends here
 
 (ert-deftest incio-test-set-custom-field-payload ()

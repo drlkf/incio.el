@@ -24,6 +24,7 @@
 (defface incio-severity-critical '((t (:inherit error))) "Face for critical severity." :group 'incio)
 (defface incio-severity-major '((t (:inherit warning))) "Face for major severity." :group 'incio)
 (defface incio-severity-minor '((t (:inherit font-lock-doc-face))) "Face for minor severity." :group 'incio)
+(defface incio-schedule-override '((t (:inherit font-lock-warning-face))) "Face for overridden shifts." :group 'incio)
 (defface incio-severity-default '((t (:inherit default))) "Fallback severity face." :group 'incio)
 (defcustom incio-severity-faces
   '(("critical" . incio-severity-critical) ("major" . incio-severity-major)
@@ -105,7 +106,8 @@
      incio-incident-set-timestamp-at-point
      incio-incident-set-custom-field-at-point)
     ("Schedules" incio-schedule-visit incio-schedule-refresh
-     incio-schedule-next incio-schedule-previous incio-schedule-now))
+     incio-schedule-next incio-schedule-previous incio-schedule-now
+     incio-schedule-toggle-calendar incio-schedule-override-at-point))
   "Sections of the help buffer, as (TITLE COMMAND...).")
 
 (defun incio--help-keys (command map)

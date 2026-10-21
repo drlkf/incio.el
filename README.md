@@ -45,10 +45,14 @@ refresh, `q` quits. In a schedule view:
 | `]` | Next window |
 | `[` | Previous window |
 | `.` | Back to now |
+| `c` | Toggle calendar view |
+| `o` | Override the shift (or day) at point |
 | `r` / `g` | Refresh |
 
 The window spans `incio-schedule-window-days` (default 7); the current shift
-is shown in bold.
+is shown in bold and overridden shifts use `incio-schedule-override`. The
+calendar view shows one row per day and one column per rotation. Overrides
+prompt for user, start and end, defaulting to the shift at point.
 
 All mutating actions ask for confirmation where appropriate. The package uses
 `inc api` for incident.io operations not exposed as typed CLI commands.
