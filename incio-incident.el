@@ -200,7 +200,9 @@ VALUE is an alist suitable for a custom field entry value."
   "Post MESSAGE to INCIDENT."
   (incio--api "POST" "/v2/incident_updates"
               `((incident_id . ,(incio-incident-id incident))
-                (message . ,message))))
+                (message . ,message)
+                (idempotency_key . ,(md5 (format "%s%s%s" (incio-incident-id incident)
+                                                 message (float-time)))))))
 
 (defun incio-incident-add-follow-up (incident title)
   "Add a follow-up TITLE to INCIDENT."
