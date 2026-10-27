@@ -30,6 +30,8 @@ Incident list keys:
 | `T` | Set timestamp |
 | `f` | Set custom field |
 | `w` | Open permalink |
+| `/` | Filter incidents with API v2 query params (`C-u M-x incio-incident-list` to start filtered) |
+| `\|` | Clear filters |
 | `r` / `g` | Refresh |
 | `q` | Quit |
 

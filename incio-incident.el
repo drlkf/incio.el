@@ -76,6 +76,24 @@
                  (incio-incident--list-args
                   (or status-categories '("live")) severity-ids sort-by))))
 
+(defun incio-incident--filter-args (filters)
+  "Build `inc api' arguments for FILTERS, a list of \"key=value\" strings."
+  (append '("api" "GET" "/v2/incidents")
+          (mapcan (lambda (filter) (list "--field" filter)) filters)
+          '("--paginate" "--output" "json")))
+
+(defun incio-incident-fetch-filtered (filters)
+  "Return incidents matching API FILTERS, a list of \"key=value\" strings."
+  (with-temp-buffer
+    (insert (apply #'incio--run (incio-incident--filter-args filters)))
+    (goto-char (point-min))
+    (let ((json-object-type 'alist) (json-array-type 'list)
+          (json-key-type 'symbol) (json-false nil) (json-null nil)
+          incidents)
+      (while (progn (skip-chars-forward " \t\n") (not (eobp)))
+        (setq incidents (append incidents (alist-get 'incidents (json-read)))))
+      (mapcar #'incio-incident--parse incidents))))
+
 (defun incio-incident-show (id)
   "Return incident ID or reference."
   (incio-incident--parse

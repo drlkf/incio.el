@@ -10,6 +10,7 @@
 
 (defvar-local incio--incidents nil)
 (defvar-local incio--incident nil)
+(defvar-local incio--filters nil)
 (defvar incio-incident-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
@@ -30,6 +31,8 @@
     (define-key map (kbd "T") #'incio-incident-set-timestamp-at-point)
     (define-key map (kbd "f") #'incio-incident-set-custom-field-at-point)
     (define-key map (kbd "w") #'incio-incident-browse)
+    (define-key map (kbd "/") #'incio-incident-filter)
+    (define-key map (kbd "|") #'incio-incident-filter-clear)
     (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
     map))
@@ -123,9 +126,36 @@
                   incidents))
     (tabulated-list-print t)))
 
+(defvar incio-incident-filter-keys
+  '("status_category[one_of]=" "status[one_of]=" "severity[one_of]="
+    "severity[gte]=" "incident_type[one_of]=" "mode[one_of]="
+    "created_at[gte]=" "created_at[lte]=" "updated_at[gte]="
+    "custom_field[ID][one_of]=" "incident_role[ID][one_of]=")
+  "Completion candidates for `incio-incident-filter'.")
+
+(defun incio--read-filters (current)
+  (completing-read-multiple "Filters (key=value, comma separated): "
+                            incio-incident-filter-keys nil nil
+                            (string-join current ",")))
+
+(defun incio-incident-filter (filters)
+  "Show incidents matching API FILTERS."
+  (interactive (list (incio--read-filters incio--filters)))
+  (setq incio--filters filters)
+  (incio-incident-refresh))
+
+(defun incio-incident-filter-clear ()
+  (interactive)
+  (incio-incident-filter nil))
+
 (defun incio-incident-refresh ()
   (interactive)
-  (setq incio--incidents (incio-incident-fetch-list))
+  (setq mode-name (if incio--filters
+                      (format "Incio-Incidents[%s]" (string-join incio--filters ","))
+                    "Incio-Incidents"))
+  (setq incio--incidents (if incio--filters
+                             (incio-incident-fetch-filtered incio--filters)
+                           (incio-incident-fetch-list)))
   (incio--render-incidents incio--incidents)
   (message "Loaded %d incident(s)" (length incio--incidents)))
 
@@ -317,12 +347,13 @@
     (message "Follow-up added")))
 
 ;;;###autoload
-(defun incio-incident-list ()
-  "Display active incidents."
-  (interactive)
+(defun incio-incident-list (&optional filters)
+  "Display active incidents, or those matching FILTERS with a prefix arg."
+  (interactive (list (when current-prefix-arg (incio--read-filters nil))))
   (let ((buffer (get-buffer-create "*incio-incidents*")))
     (with-current-buffer buffer
       (incio-incident-list-mode)
+      (setq incio--filters filters)
       (incio-incident-refresh))
     (pop-to-buffer buffer)))
 

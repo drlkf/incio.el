@@ -290,3 +290,16 @@
     (should (equal "/v2/incidents/01INC/actions/edit" (car sent)))
     (should (equal "{\"incident\":{\"custom_field_entries\":[{\"custom_field_id\":\"cf-1\",\"values\":[{\"value_numeric\":\"4\"}]}]},\"notify_incident_channel\":true}"
                    (json-encode (cdr sent))))))
+
+(ert-deftest incio-test-fetch-filtered-paginated ()
+  (let (args)
+    (cl-letf (((symbol-function 'incio--run)
+               (lambda (&rest a)
+                 (setq args a)
+                 "{\"incidents\":[{\"id\":\"1\"}]}\n{\"incidents\":[{\"id\":\"2\"}]}\n")))
+      (should (equal '("1" "2")
+                     (mapcar #'incio-incident-id
+                             (incio-incident-fetch-filtered '("mode[one_of]=standard"))))))
+    (should (equal '("api" "GET" "/v2/incidents" "--field" "mode[one_of]=standard"
+                     "--paginate" "--output" "json")
+                   args))))
