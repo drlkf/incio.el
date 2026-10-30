@@ -7,6 +7,7 @@
 (require 'seq)
 (require 'tabulated-list)
 (require 'incio-incident)
+(require 'incio-resources)
 
 (defvar-local incio--incidents nil)
 (defvar-local incio--incident nil)
@@ -33,6 +34,7 @@
     (define-key map (kbd "w") #'incio-incident-browse)
     (define-key map (kbd "/") #'incio-incident-filter)
     (define-key map (kbd "|") #'incio-incident-filter-clear)
+    (define-key map (kbd "O") #'incio-schedule-list)
     (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
     map))

@@ -3,6 +3,7 @@
 ;;; Code:
 
 (require 'incio-core)
+(require 'cl-lib)
 (require 'tabulated-list)
 
 (defvar incio-resource-mode-map
@@ -71,11 +72,21 @@
 (defvar-local incio--schedule nil)
 (defvar-local incio--schedule-from nil)
 (defvar-local incio--schedule-calendar nil)
+(defvar-local incio--schedule-timeline nil)
+
+(defcustom incio-schedule-timeline-slot-hours 3
+  "Hours covered by one character of the schedule timeline."
+  :type 'integer :group 'incio)
+
+(defcustom incio-schedule-preview-count 5
+  "Number of upcoming shifts shown in a folded schedule preview."
+  :type 'integer :group 'incio)
 
 (defvar incio-schedule-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map (kbd "RET") #'incio-schedule-visit)
+    (define-key map (kbd "TAB") #'incio-schedule-toggle-preview)
     (define-key map (kbd "g") #'incio-schedule-refresh)
     (define-key map (kbd "r") #'incio-schedule-refresh)
     (define-key map (kbd "?") #'incio-help)
@@ -86,6 +97,8 @@
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map incio-schedule-list-mode-map)
     (define-key map (kbd "RET") nil)
+    (define-key map (kbd "TAB") nil)
+    (define-key map (kbd "t") #'incio-schedule-toggle-timeline)
     (define-key map (kbd "]") #'incio-schedule-next)
     (define-key map (kbd "[") #'incio-schedule-previous)
     (define-key map (kbd ".") #'incio-schedule-now)
@@ -120,10 +133,10 @@
         (incio--schedule-iso
          (time-add from (days-to-time incio-schedule-window-days)))))
 
-(defun incio--schedule-rotations ()
+(defun incio--schedule-rotations (&optional schedule)
   "Alist of (ID . ROTATION), keeping the last config version of each."
   (let (result)
-    (dolist (r (alist-get 'rotations (alist-get 'config incio--schedule)))
+    (dolist (r (alist-get 'rotations (alist-get 'config (or schedule incio--schedule))))
       (setf (alist-get (alist-get 'id r) result nil nil #'equal) r))
     (nreverse result)))
 
@@ -211,28 +224,98 @@
     (setq tabulated-list-entries rows)
     (tabulated-list-print t)))
 
+(defun incio--schedule-timeline-slots ()
+  (/ (* 24 incio-schedule-window-days) incio-schedule-timeline-slot-hours))
+
+(defun incio--schedule-timeline-ticks (from)
+  "Day labels positioned on a timeline starting at FROM."
+  (let* ((per-day (/ 24 incio-schedule-timeline-slot-hours))
+         (line (make-string (incio--schedule-timeline-slots) ?\s)))
+    (dotimes (i incio-schedule-window-days)
+      (let ((label (truncate-string-to-width
+                    (format-time-string "%a %d" (incio--schedule-day from i))
+                    (1- per-day))))
+        (store-substring line (* i per-day) label)))
+    line))
+
+(defun incio--schedule-timeline-row (entries from now)
+  "One character per slot from FROM, naming the user on call in runs."
+  (let* ((slot (* 3600 incio-schedule-timeline-slot-hours))
+         (owners
+          (mapcar
+           (lambda (i)
+             (let ((mid (time-add from (+ (* i slot) (/ slot 2)))))
+               (seq-find (lambda (e)
+                           (and (not (time-less-p mid (date-to-time (alist-get 'start_at e))))
+                                (time-less-p mid (date-to-time (alist-get 'end_at e)))))
+                         entries)))
+           (number-sequence 0 (1- (incio--schedule-timeline-slots)))))
+         (runs nil))
+    (dolist (o owners)
+      (if (and runs (eq (caar runs) o))
+          (setcdr (car runs) (1+ (cdar runs)))
+        (push (cons o 1) runs)))
+    (let ((i 0))
+      (mapconcat
+       (lambda (run)
+         (let* ((e (car run)) (n (cdr run))
+                (text (if e
+                          (truncate-string-to-width
+                           (or (alist-get 'name (alist-get 'user e)) "?") n nil ?\s)
+                        (make-string n ?·)))
+                (live (and e (time-less-p (date-to-time (alist-get 'start_at e)) now)
+                           (time-less-p now (date-to-time (alist-get 'end_at e))))))
+           (if e
+               (propertize text 'face
+                           (append (when live '(bold))
+                                   (list (if (cl-oddp (cl-incf i)) 'highlight 'secondary-selection))))
+             text)))
+       (nreverse runs) ""))))
+
+(defun incio--render-schedule-timeline (entries rotations now)
+  (let ((from (incio--schedule-day incio--schedule-from 0)))
+    (setq tabulated-list-format
+          (vector (list "Rotation" (min 30 (apply #'max 8 (mapcar (lambda (r) (length (or (alist-get 'name (cdr r)) ""))) rotations))) nil)
+                  '("Timeline" 0 nil)))
+    (tabulated-list-init-header)
+    (setq tabulated-list-entries
+          (cons (list nil (vector "" (incio--schedule-timeline-ticks from)))
+                (mapcar (lambda (r)
+                          (list nil
+                                (vector (or (alist-get 'name (cdr r)) "")
+                                        (incio--schedule-timeline-row
+                                         (seq-filter (lambda (e) (equal (car r) (alist-get 'rotation_id e)))
+                                                     entries)
+                                         from now))))
+                        rotations)))
+    (tabulated-list-print t)))
+
 (defun incio--render-schedule (data)
   (let ((entries (seq-sort-by (lambda (e) (alist-get 'start_at e)) #'string<
                               (alist-get 'final data)))
         (rotations (incio--schedule-rotations))
         (overrides (mapcar #'incio--schedule-key (alist-get 'overrides data)))
         (now (current-time)))
-    (if incio--schedule-calendar
-        (incio--render-schedule-calendar entries rotations overrides now)
+    (cond
+     (incio--schedule-timeline
+      (incio--render-schedule-timeline entries rotations now))
+     (incio--schedule-calendar
+      (incio--render-schedule-calendar entries rotations overrides now))
+     (t
       (setq tabulated-list-format
             [("Start" 22 t) ("End" 22 t) ("User" 28 t) ("Rotation" 0 t)])
       (tabulated-list-init-header)
       (setq tabulated-list-entries
             (mapcar (lambda (e) (incio--schedule-entry-row e rotations overrides now))
                     entries))
-      (tabulated-list-print t))))
+      (tabulated-list-print t)))))
 
 (defun incio-schedule-refresh ()
   "Reload the current schedule view."
   (interactive)
   (if (derived-mode-p 'incio-schedule-mode)
       (let ((window (incio--schedule-window
-                     (if incio--schedule-calendar
+                     (if (or incio--schedule-calendar incio--schedule-timeline)
                          (incio--schedule-day incio--schedule-from 0)
                        incio--schedule-from))))
         (incio--render-schedule
@@ -240,6 +323,7 @@
                 (alist-get 'id incio--schedule) window))
         (message "%s: %s → %s" (alist-get 'name incio--schedule)
                  (substring (car window) 0 10) (substring (cadr window) 0 10)))
+    (remove-overlays nil nil 'incio-preview t)
     (setq tabulated-list-entries
           (mapcar (lambda (s)
                     (list s (vector (or (alist-get 'name s) "")
@@ -270,8 +354,54 @@
 (defun incio-schedule-toggle-calendar ()
   "Switch between the shift list and a per-day calendar."
   (interactive)
-  (setq incio--schedule-calendar (not incio--schedule-calendar))
+  (setq incio--schedule-calendar (not incio--schedule-calendar)
+        incio--schedule-timeline nil)
   (incio-schedule-refresh))
+
+(defun incio-schedule-toggle-timeline ()
+  "Switch between the shift list and a per-rotation timeline."
+  (interactive)
+  (setq incio--schedule-timeline (not incio--schedule-timeline)
+        incio--schedule-calendar nil)
+  (incio-schedule-refresh))
+
+(defun incio--schedule-preview (schedule entries now)
+  "Text listing who is on call and the next shifts of SCHEDULE."
+  (let ((rotations (incio--schedule-rotations schedule))
+        (upcoming (seq-take
+                   (seq-filter (lambda (e) (time-less-p now (date-to-time (alist-get 'end_at e))))
+                               (seq-sort-by (lambda (e) (alist-get 'start_at e)) #'string< entries))
+                   incio-schedule-preview-count)))
+    (if (null upcoming)
+        "    (no upcoming shifts)\n"
+      (mapconcat
+       (lambda (e)
+         (let ((line (format "    %s → %s  %-24s %s\n"
+                             (format-time-string "%a %F %R" (date-to-time (alist-get 'start_at e)))
+                             (format-time-string "%a %F %R" (date-to-time (alist-get 'end_at e)))
+                             (or (alist-get 'name (alist-get 'user e)) "")
+                             (or (alist-get 'name (cdr (assoc (alist-get 'rotation_id e) rotations))) ""))))
+           (if (time-less-p (date-to-time (alist-get 'start_at e)) now)
+               (propertize line 'face 'bold)
+             line)))
+       upcoming ""))))
+
+(defun incio-schedule-toggle-preview ()
+  "Fold or unfold the upcoming shifts of the schedule at point."
+  (interactive)
+  (let* ((schedule (or (tabulated-list-get-id) (user-error "No schedule on this line")))
+         (eol (line-end-position))
+         (existing (seq-find (lambda (o) (overlay-get o 'incio-preview))
+                             (overlays-in eol (1+ eol)))))
+    (if existing
+        (delete-overlay existing)
+      (let* ((now (current-time))
+             (window (incio--schedule-window now))
+             (data (apply #'incio-schedule-fetch-entries (alist-get 'id schedule) window))
+             (ov (make-overlay (1+ eol) (1+ eol))))
+        (overlay-put ov 'incio-preview t)
+        (overlay-put ov 'before-string
+                     (incio--schedule-preview schedule (alist-get 'final data) now))))))
 
 (defun incio--schedule-pick (prompt items label)
   "Pick one of ITEMS, shown with LABEL, prompting only when needed."

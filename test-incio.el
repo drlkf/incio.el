@@ -256,6 +256,27 @@
             (should (equal "" (aref (cadr (nth 2 tabulated-list-entries)) 1)))))
       (set-time-zone-rule nil))))
 
+(ert-deftest incio-test-schedule-timeline-and-preview ()
+  (let ((process-environment (cons "TZ=UTC" process-environment))
+        (incio-schedule-window-days 2)
+        (incio-schedule-timeline-slot-hours 6)
+        (entries '(((rotation_id . "rot-1") (user . ((name . "Alice")))
+                    (start_at . "2026-10-21T00:00:00Z") (end_at . "2026-10-21T12:00:00Z"))
+                   ((rotation_id . "rot-1") (user . ((name . "Bob")))
+                    (start_at . "2026-10-21T12:00:00Z") (end_at . "2026-10-22T06:00:00Z")))))
+    (set-time-zone-rule "UTC")
+    (unwind-protect
+        (let ((from (date-to-time "2026-10-21T00:00:00Z"))
+              (now (date-to-time "2026-10-21T13:00:00Z")))
+          (should (equal "Wed Thu " (incio--schedule-timeline-ticks from)))
+          (should (equal "AlBob···" (substring-no-properties
+                                     (incio--schedule-timeline-row entries from now))))
+          (let ((preview (incio--schedule-preview incio-test--schedule entries now)))
+            (should-not (string-match-p "Alice" preview))
+            (should (string-match-p "Bob.*Weekly" preview)))
+          (should (eq 'incio-schedule-list (lookup-key incio-incident-list-mode-map "O"))))
+      (set-time-zone-rule nil))))
+
 (ert-deftest incio-test-schedule-override-args ()
   (let (calls)
     (cl-letf (((symbol-function 'incio--run-json)

@@ -107,7 +107,9 @@
      incio-incident-set-custom-field-at-point)
     ("Schedules" incio-schedule-visit incio-schedule-refresh
      incio-schedule-next incio-schedule-previous incio-schedule-now
-     incio-schedule-toggle-calendar incio-schedule-override-at-point))
+     incio-schedule-toggle-calendar incio-schedule-toggle-timeline
+     incio-schedule-toggle-preview incio-schedule-override-at-point
+     incio-schedule-list))
   "Sections of the help buffer, as (TITLE COMMAND...).")
 
 (defun incio--help-keys (command map)
