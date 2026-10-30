@@ -329,6 +329,10 @@
   (let ((incident (incio--incident-at-point)))
     (unless incident (user-error "No incident on this line"))
     (when (yes-or-no-p (format "Close %s? " (incio-incident-reference incident)))
+      (when (string-empty-p (or (incio-incident-summary incident) ""))
+        (let ((summary (read-string "Summary (required to close): ")))
+          (when (string-empty-p summary) (user-error "Summary required"))
+          (incio-incident--edit incident `((summary . ,summary)))))
       (incio-incident-close incident)
       (incio-refresh))))
 
