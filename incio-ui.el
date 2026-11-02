@@ -135,10 +135,75 @@
     "custom_field[ID][one_of]=" "incident_role[ID][one_of]=")
   "Completion candidates for `incio-incident-filter'.")
 
+(defun incio--filter-pairs (items)
+  "Return (ID . NAME) pairs from ITEMS alists."
+  (mapcar (lambda (item) (cons (incio--alist-get 'id item) (incio--alist-get 'name item)))
+          items))
+
+(defun incio--filter-value-ids (choices)
+  "Return (ID . NAME) pairs from custom field CHOICES."
+  (mapcar (lambda (choice) (cons (cdar (cdr choice)) (car choice))) choices))
+
+(defun incio--filter-candidates (input fetch)
+  "Return (CANDIDATE . ANNOTATION) pairs completing filter INPUT.
+FETCH is called with a cache key and a thunk to memoize lookups."
+  (cond
+   ((string-match "\\`\\(custom_field\\|incident_role\\)\\[\\([^]]+\\)\\]\\[one_of\\]=" input)
+    (let ((prefix (match-string 0 input))
+          (id (match-string 2 input)))
+      (mapcar (lambda (pair) (cons (concat prefix (car pair)) (cdr pair)))
+              (if (equal (match-string 1 input) "incident_role")
+                  (funcall fetch 'users (lambda () (incio--filter-pairs (incio-users))))
+                (funcall fetch (intern id)
+                         (lambda ()
+                           (let ((field (seq-find (lambda (f) (equal id (incio--alist-get 'id f)))
+                                                  (funcall fetch 'fields #'incio-custom-fields))))
+                             (and field (incio--filter-value-ids (incio-custom-field-choices field))))))))))
+   ((string-match "\\`\\(custom_field\\|incident_role\\)\\[" input)
+    (let ((kind (match-string 1 input)))
+      (mapcar (lambda (item)
+                (cons (format "%s[%s][one_of]=" kind (incio--alist-get 'id item))
+                      (incio--alist-get 'name item)))
+              (if (equal kind "incident_role")
+                  (funcall fetch 'roles #'incio-roles)
+                (funcall fetch 'fields #'incio-custom-fields)))))
+   ((string-match "\\`[^=]+=" input)
+    (let ((prefix (match-string 0 input)))
+      (mapcar (lambda (pair) (cons (concat prefix (car pair)) (cdr pair)))
+              (pcase prefix
+                ("status_category[one_of]="
+                 (mapcar #'list '("triage" "declined" "merged" "canceled"
+                                  "live" "learning" "closed" "paused")))
+                ("mode[one_of]="
+                 (mapcar #'list '("standard" "retrospective" "test" "tutorial")))
+                ("status[one_of]="
+                 (funcall fetch 'statuses (lambda () (incio--filter-pairs (incio-incident-statuses)))))
+                ((or "severity[one_of]=" "severity[gte]=")
+                 (funcall fetch 'severities (lambda () (incio--filter-pairs (incio-severities)))))
+                ("incident_type[one_of]="
+                 (funcall fetch 'types (lambda () (incio--filter-pairs (incio-incident-types)))))))))
+   (t (mapcar #'list incio-incident-filter-keys))))
+
 (defun incio--read-filters (current)
-  (completing-read-multiple "Filters (key=value, comma separated): "
-                            incio-incident-filter-keys nil nil
-                            (string-join current ",")))
+  (let* ((cache nil)
+         (fetch (lambda (key thunk)
+                  (let ((hit (assq key cache)))
+                    (if hit (cdr hit)
+                      (let ((value (funcall thunk)))
+                        (push (cons key value) cache)
+                        value)))))
+         (annotations (make-hash-table :test #'equal))
+         (table (lambda (string pred action)
+                  (if (eq action 'metadata)
+                      `(metadata (annotation-function
+                                  . ,(lambda (c)
+                                       (let ((a (gethash c annotations)))
+                                         (and a (concat "  " a))))))
+                    (let ((cands (incio--filter-candidates string fetch)))
+                      (dolist (c cands) (puthash (car c) (cdr c) annotations))
+                      (complete-with-action action (mapcar #'car cands) string pred))))))
+    (completing-read-multiple "Filters (key=value, comma separated): "
+                              table nil nil (string-join current ","))))
 
 (defun incio-incident-filter (filters)
   "Show incidents matching API FILTERS."

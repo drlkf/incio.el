@@ -144,6 +144,10 @@
   "Return the list of severities."
   (incio--run-json "severities" "list" "--limit" "0"))
 
+(defun incio-incident-types ()
+  "Return the list of incident types."
+  (incio--alist-get 'incident_types (incio--api "GET" "/v1/incident_types")))
+
 (defun incio-incident-timestamps ()
   "Return the list of incident timestamp definitions."
   (incio--alist-get 'incident_timestamps (incio--api "GET" "/v2/incident_timestamps")))
