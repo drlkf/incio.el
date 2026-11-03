@@ -101,6 +101,18 @@
         (should (equal "API" (aref row 3)))
         (should (equal "INC-1:boom" (aref row 4)))))))
 
+(ert-deftest incio-test-list-column-labels ()
+  (let ((incio-incident-list-custom-fields nil)
+        (incio-incident-list-column-labels '(("Severity" . "Sev")))
+        (incio-incident-list-field-transforms
+         `(("Severity" . ,(lambda (_value _incident) "x")))))
+    (with-temp-buffer
+      (incio-incident-list-mode)
+      (incio--render-incidents (list (incio-incident-create)))
+      (should (equal '("Reference" "Status" "Sev" "Name")
+                     (mapcar #'car tabulated-list-format)))
+      (should (equal "x" (aref (cadr (car tabulated-list-entries)) 2))))))
+
 (ert-deftest incio-test-selects-status-and-severity-faces ()
   (should (eq 'incio-status-live (incio-status-face "live")))
   (should (eq 'incio-status-default (incio-status-face "unknown")))
