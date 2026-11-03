@@ -3,6 +3,7 @@
 ;;; Code:
 
 (require 'browse-url)
+(require 'cl-lib)
 (require 'goto-addr)
 (require 'seq)
 (require 'tabulated-list)
@@ -49,6 +50,12 @@
   "Custom fields shown as extra columns in the incident list.
 Each element is a field name, or (NAME . WIDTH)."
   :type '(repeat (choice string (cons string integer))) :group 'incio)
+
+(defcustom incio-incident-list-field-transforms nil
+  "Transforms applied to incident list cells.
+Each element is (COLUMN-NAME . FUNCTION); FUNCTION is called with the
+cell string and the incident, and returns the string to display."
+  :type '(alist :key-type string :value-type function) :group 'incio)
 
 (defun incio--incident-list-format ()
   (vconcat [ ("Reference" 12 t)
@@ -133,17 +140,22 @@ Each element is a field name, or (NAME . WIDTH)."
     (setq tabulated-list-entries
           (mapcar (lambda (incident)
                     (list incident
-                          (vconcat
-                           (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
-                                   (propertize (or (incio-incident-status-name incident) "")
-                                               'face (incio-status-face (incio-incident-status-category incident)))
-                                   (propertize (or (incio-incident-severity-name incident) "")
-                                               'face (incio-severity-face (incio-incident-severity-name incident))))
-                           (let ((fields (incio-incident-custom-fields incident)))
-                             (mapcar (lambda (field)
-                                       (or (cdr (assoc (if (consp field) (car field) field) fields)) ""))
-                                     incio-incident-list-custom-fields))
-                           (vector (or (incio-incident-name incident) "")))))
+                          (cl-map 'vector
+                                  (lambda (col cell)
+                                    (let ((fn (cdr (assoc (car col) incio-incident-list-field-transforms))))
+                                      (if fn (funcall fn cell incident) cell)))
+                                  tabulated-list-format
+                                  (vconcat
+                                   (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
+                                           (propertize (or (incio-incident-status-name incident) "")
+                                                       'face (incio-status-face (incio-incident-status-category incident)))
+                                           (propertize (or (incio-incident-severity-name incident) "")
+                                                       'face (incio-severity-face (incio-incident-severity-name incident))))
+                                   (let ((fields (incio-incident-custom-fields incident)))
+                                     (mapcar (lambda (field)
+                                               (or (cdr (assoc (if (consp field) (car field) field) fields)) ""))
+                                             incio-incident-list-custom-fields))
+                                   (vector (or (incio-incident-name incident) ""))))))
                   incidents))
     (tabulated-list-print t)))
 

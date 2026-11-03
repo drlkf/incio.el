@@ -84,6 +84,23 @@
       (should (equal ["" "" "" "3" "api" ""]
                      (cadr (car tabulated-list-entries)))))))
 
+(ert-deftest incio-test-list-field-transforms ()
+  (let ((incio-incident-list-custom-fields '("Service"))
+        (incio-incident-list-field-transforms
+         `(("Service" . ,(lambda (v _) (upcase v)))
+           ("Name" . ,(lambda (v i) (concat (incio-incident-reference i) ":" v))))))
+    (with-temp-buffer
+      (incio-incident-list-mode)
+      (incio--render-incidents
+       (list (incio-incident-create
+              :reference "INC-1" :name "boom"
+              :raw '((custom_field_entries
+                      . [((custom_field (name . "Service"))
+                          (values . [((value_text . "api"))]))])))))
+      (let ((row (cadr (car tabulated-list-entries))))
+        (should (equal "API" (aref row 3)))
+        (should (equal "INC-1:boom" (aref row 4)))))))
+
 (ert-deftest incio-test-selects-status-and-severity-faces ()
   (should (eq 'incio-status-live (incio-status-face "live")))
   (should (eq 'incio-status-default (incio-status-face "unknown")))
