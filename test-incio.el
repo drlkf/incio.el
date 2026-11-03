@@ -348,6 +348,10 @@
     (should (equal "{\"incident\":{\"custom_field_entries\":[{\"custom_field_id\":\"cf-1\",\"values\":[{\"value_numeric\":\"4\"}]}]},\"notify_incident_channel\":true}"
                    (json-encode (cdr sent))))))
 
+(ert-deftest incio-test-filter-args-unfiltered ()
+  (should (equal '("api" "GET" "/v2/incidents" "--paginate" "--output" "json")
+                 (incio-incident--filter-args nil))))
+
 (ert-deftest incio-test-fetch-filtered-paginated ()
   (let (args)
     (cl-letf (((symbol-function 'incio--run)

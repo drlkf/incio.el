@@ -13,6 +13,7 @@
 (defvar-local incio--incidents nil)
 (defvar-local incio--incident nil)
 (defvar-local incio--filters nil)
+(defvar-local incio--all nil)
 (defvar incio-incident-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
@@ -35,6 +36,7 @@
     (define-key map (kbd "w") #'incio-incident-browse)
     (define-key map (kbd "/") #'incio-incident-filter)
     (define-key map (kbd "|") #'incio-incident-filter-clear)
+    (define-key map (kbd "*") #'incio-incident-list-all)
     (define-key map (kbd "O") #'incio-schedule-list)
     (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
@@ -239,19 +241,26 @@ FETCH is called with a cache key and a thunk to memoize lookups."
 (defun incio-incident-filter (filters)
   "Show incidents matching API FILTERS."
   (interactive (list (incio--read-filters incio--filters)))
-  (setq incio--filters filters)
+  (setq incio--filters filters incio--all nil)
   (incio-incident-refresh))
 
 (defun incio-incident-filter-clear ()
   (interactive)
   (incio-incident-filter nil))
 
+(defun incio-incident-list-all ()
+  "Show all incidents, without any filter."
+  (interactive)
+  (setq incio--filters nil incio--all t)
+  (incio-incident-refresh))
+
 (defun incio-incident-refresh ()
   (interactive)
-  (setq mode-name (if incio--filters
-                      (format "Incio-Incidents[%s]" (string-join incio--filters ","))
-                    "Incio-Incidents"))
-  (setq incio--incidents (if incio--filters
+  (setq mode-name (cond (incio--all "Incio-Incidents[all]")
+                        (incio--filters
+                         (format "Incio-Incidents[%s]" (string-join incio--filters ",")))
+                        (t "Incio-Incidents")))
+  (setq incio--incidents (if (or incio--all incio--filters)
                              (incio-incident-fetch-filtered incio--filters)
                            (incio-incident-fetch-list)))
   (incio--render-incidents incio--incidents)
