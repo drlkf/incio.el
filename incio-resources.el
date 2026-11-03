@@ -392,7 +392,7 @@
   (let* ((schedule (or (tabulated-list-get-id) (user-error "No schedule on this line")))
          (eol (line-end-position))
          (existing (seq-find (lambda (o) (overlay-get o 'incio-preview))
-                             (overlays-in eol (1+ eol)))))
+                             (overlays-in (1+ eol) (1+ eol)))))
     (if existing
         (delete-overlay existing)
       (let* ((now (current-time))
