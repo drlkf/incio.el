@@ -65,6 +65,25 @@
     (should (equal nil (incio-incident-roles incident)))
     (should (equal nil (incio-incident-custom-fields incident)))))
 
+(ert-deftest incio-test-list-custom-field-columns ()
+  (let ((incio-incident-list-custom-fields '("Cluster" "Service")))
+    (with-temp-buffer
+      (incio-incident-list-mode)
+      (should (equal '("Reference" "Status" "Severity" "Cluster" "Service" "Name")
+                     (mapcar #'car tabulated-list-format)))
+      (setq incio-incident-list-custom-fields '(("Count" . 5) "Service"))
+      (incio--render-incidents
+       (list (incio-incident-create
+              :raw '((custom_field_entries
+                      . [((custom_field (name . "Service"))
+                          (values . [((value_text . "api"))]))
+                         ((custom_field (name . "Count"))
+                          (values . [((value_numeric . 3))]))])))))
+      (should (equal '(("Count" 5 t) ("Service" 16 t))
+                     (append (seq-subseq tabulated-list-format 3 5) nil)))
+      (should (equal ["" "" "" "3" "api" ""]
+                     (cadr (car tabulated-list-entries)))))))
+
 (ert-deftest incio-test-selects-status-and-severity-faces ()
   (should (eq 'incio-status-live (incio-status-face "live")))
   (should (eq 'incio-status-default (incio-status-face "unknown")))

@@ -45,13 +45,25 @@
     (define-key map (kbd "RET") nil)
     map))
 
+(defcustom incio-incident-list-custom-fields nil
+  "Custom fields shown as extra columns in the incident list.
+Each element is a field name, or (NAME . WIDTH)."
+  :type '(repeat (choice string (cons string integer))) :group 'incio)
+
+(defun incio--incident-list-format ()
+  (vconcat [ ("Reference" 12 t)
+             ("Status" 14 t)
+             ("Severity" 10 t) ]
+           (mapcar (lambda (field)
+                     (if (consp field)
+                         (list (car field) (cdr field) t)
+                       (list field 16 t)))
+                   incio-incident-list-custom-fields)
+           [ ("Name" 0 t) ]))
+
 (define-derived-mode incio-incident-list-mode tabulated-list-mode "Incio-Incidents"
   "Major mode for incident.io incidents."
-  (setq-local tabulated-list-format
-              [ ("Reference" 12 t)
-                ("Status" 14 t)
-                ("Severity" 10 t)
-                ("Name" 0 t) ])
+  (setq-local tabulated-list-format (incio--incident-list-format))
   (setq-local tabulated-list-padding 1)
   (tabulated-list-init-header)
   (hl-line-mode 1))
@@ -116,15 +128,22 @@
 
 (defun incio--render-incidents (incidents)
   (let ((inhibit-read-only t))
+    (setq tabulated-list-format (incio--incident-list-format))
+    (tabulated-list-init-header)
     (setq tabulated-list-entries
           (mapcar (lambda (incident)
                     (list incident
-                          (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
-                                  (propertize (or (incio-incident-status-name incident) "")
-                                              'face (incio-status-face (incio-incident-status-category incident)))
-                                  (propertize (or (incio-incident-severity-name incident) "")
-                                              'face (incio-severity-face (incio-incident-severity-name incident)))
-                                  (or (incio-incident-name incident) ""))))
+                          (vconcat
+                           (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
+                                   (propertize (or (incio-incident-status-name incident) "")
+                                               'face (incio-status-face (incio-incident-status-category incident)))
+                                   (propertize (or (incio-incident-severity-name incident) "")
+                                               'face (incio-severity-face (incio-incident-severity-name incident))))
+                           (let ((fields (incio-incident-custom-fields incident)))
+                             (mapcar (lambda (field)
+                                       (or (cdr (assoc (if (consp field) (car field) field) fields)) ""))
+                                     incio-incident-list-custom-fields))
+                           (vector (or (incio-incident-name incident) "")))))
                   incidents))
     (tabulated-list-print t)))
 
