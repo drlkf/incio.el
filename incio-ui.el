@@ -375,6 +375,22 @@ FETCH is called with a cache key and a thunk to memoize lookups."
         (incio-incident-set-timestamp incident (incio--alist-get 'id timestamp) value)
         (incio-refresh)))))
 
+(defun incio--select-multiple (name names selected)
+  "Toggle NAMES one pick at a time, starting from SELECTED, until done."
+  (setq selected (seq-intersection selected names))
+  (let (pick)
+    (while (not (equal (setq pick
+                             (completing-read
+                              (format "%s [%s]: " name (string-join selected ", "))
+                              (cons "[done]"
+                                    (mapcar (lambda (n) (if (member n selected) (concat "* " n) n))
+                                            names))
+                              nil t))
+                       "[done]"))
+      (let ((n (string-remove-prefix "* " pick)))
+        (setq selected (if (member n selected) (delete n selected) (append selected (list n))))))
+    selected))
+
 (defun incio-incident-set-custom-field-at-point ()
   (interactive)
   (let ((incident (incio--incident-at-point)))
@@ -390,15 +406,15 @@ FETCH is called with a cache key and a thunk to memoize lookups."
             (cond
              ((equal "multi_select" (incio--alist-get 'field_type field))
               (mapcar (lambda (choice) (cdr (assoc choice choices)))
-                      (completing-read-multiple (format "%s: " name) choices nil t current)))
+                      (incio--select-multiple name (mapcar #'car choices)
+                                              (and current (split-string current ", " t)))))
              (choices
               (list (cdr (assoc (completing-read (format "%s: " name) choices nil t nil nil current)
                                 choices))))
              (t (list (incio-custom-field-free-value
                        field (read-string (format "%s: " name) current)))))))
-      (when (yes-or-no-p (format "Set %s on %s? " name (incio-incident-reference incident)))
-        (incio-incident-set-custom-field incident (incio--alist-get 'id field) (delq nil values))
-        (incio-refresh)))))
+      (incio-incident-set-custom-field incident (incio--alist-get 'id field) (delq nil values))
+      (incio-refresh))))
 
 (defun incio-incident-ack-at-point ()
   (interactive)
