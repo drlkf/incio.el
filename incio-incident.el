@@ -72,11 +72,10 @@
 
 (defun incio-incident-fetch-list (&optional status-categories severity-ids sort-by)
   "Return incidents matching filters."
-  (incio-incident--with-alerts
-   (mapcar #'incio-incident--parse
-           (apply #'incio--run-json
-                  (incio-incident--list-args
-                   (or status-categories '("triage" "live")) severity-ids sort-by)))))
+  (mapcar #'incio-incident--parse
+          (apply #'incio--run-json
+                 (incio-incident--list-args
+                  (or status-categories '("triage" "live")) severity-ids sort-by))))
 
 (defun incio-incident--filter-args (filters)
   "Build `inc api' arguments for FILTERS, a list of \"key=value\" strings."
@@ -84,10 +83,10 @@
           (mapcan (lambda (filter) (list "--field" filter)) filters)
           '("--paginate" "--output" "json")))
 
-(defun incio--api-paginated (key args)
-  "Run `inc api' ARGS with pagination and return all KEY items."
+(defun incio--parse-paginated (key output)
+  "Return all KEY items from paginated `inc api' OUTPUT."
   (with-temp-buffer
-    (insert (apply #'incio--run args))
+    (insert output)
     (goto-char (point-min))
     (let ((json-object-type 'alist) (json-array-type 'list)
           (json-key-type 'symbol) (json-false nil) (json-null nil)
@@ -98,16 +97,44 @@
             (setq items (append items (alist-get key page))))))
       items)))
 
-(defun incio-incident-fetch-alerts (incident)
-  "Set and return the alerts attached to INCIDENT."
+(defun incio--api-paginated (key args)
+  "Run `inc api' ARGS with pagination and return all KEY items."
+  (incio--parse-paginated key (apply #'incio--run args)))
+
+(defun incio-incident--alerts-args (incident)
+  (list "api" "GET" "/v2/incident_alerts"
+        "--field" (concat "incident_id=" (incio-incident-id incident))
+        "--field" "page_size=50"
+        "--paginate" "--output" "json"))
+
+(defun incio-incident--set-alerts (incident output)
   (setf (incio-incident-alerts incident)
         (mapcar (lambda (entry) (alist-get 'alert entry))
-                (incio--api-paginated
-                 'incident_alerts
-                 (list "api" "GET" "/v2/incident_alerts"
-                       "--field" (concat "incident_id=" (incio-incident-id incident))
-                       "--field" "page_size=50"
-                       "--paginate" "--output" "json")))))
+                (incio--parse-paginated 'incident_alerts output))))
+
+(defun incio-incident-fetch-alerts (incident)
+  "Set and return the alerts attached to INCIDENT."
+  (incio-incident--set-alerts
+   incident (apply #'incio--run (incio-incident--alerts-args incident))))
+
+(defun incio-incident-fetch-alerts-async (incident callback)
+  "Fetch INCIDENT alerts in the background, then call CALLBACK.
+Failures are ignored."
+  (let ((out (generate-new-buffer " *incio-alerts*"))
+        (err (generate-new-buffer " *incio-alerts-err*")))
+    (make-process
+     :name "incio-alerts" :buffer out :stderr err :noquery t
+     :command (cons incio-inc-executable (incio-incident--alerts-args incident))
+     :sentinel (lambda (proc _event)
+                 (unless (process-live-p proc)
+                   (unwind-protect
+                       (when (eq 0 (process-exit-status proc))
+                         (ignore-errors
+                           (incio-incident--set-alerts
+                            incident (with-current-buffer out (buffer-string)))
+                           (funcall callback)))
+                     (kill-buffer out)
+                     (kill-buffer err)))))))
 
 (defun incio-incident-alerts-count (incident)
   "Return \"RESOLVED/TOTAL\" for INCIDENT alerts, or \"\" when none."
@@ -118,23 +145,18 @@
                       'face (if (= resolved (length alerts)) 'success 'error)))
       "")))
 
-(defun incio-incident--with-alerts (incidents)
-  ;; ponytail: one request per incident, batch if lists get slow
-  (mapc #'incio-incident-fetch-alerts incidents))
-
 (defun incio-incident-fetch-filtered (filters)
   "Return incidents matching API FILTERS, a list of \"key=value\" strings."
-  (incio-incident--with-alerts
-   (mapcar #'incio-incident--parse
-           (incio--api-paginated
-            'incidents
-            (incio-incident--filter-args filters)))))
+  (mapcar #'incio-incident--parse
+          (incio--api-paginated
+           'incidents
+           (incio-incident--filter-args filters))))
 
 (defun incio-incident-show (id)
-  "Return incident ID or reference."
-  (car (incio-incident--with-alerts
-        (list (incio-incident--parse
-               (incio--run-json "incidents" "show" id))))))
+  "Return incident ID or reference, with its alerts."
+  (let ((incident (incio-incident--parse (incio--run-json "incidents" "show" id))))
+    (incio-incident-fetch-alerts incident)
+    incident))
 
 (defun incio-incident--edit (incident fields &optional extra)
   "Edit INCIDENT with FIELDS via the incident.io edit action.

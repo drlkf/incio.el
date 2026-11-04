@@ -300,6 +300,17 @@ FETCH is called with a cache key and a thunk to memoize lookups."
                              (incio-incident-fetch-filtered incio--filters)
                            (incio-incident-fetch-list)))
   (incio--render-incidents incio--incidents)
+  (let ((buffer (current-buffer))
+        (incidents incio--incidents))
+    ;; ponytail: one process and one re-render per incident, batch if lists get large
+    (dolist (incident incidents)
+      (incio-incident-fetch-alerts-async
+       incident
+       (lambda ()
+         (when (buffer-live-p buffer)
+           (with-current-buffer buffer
+             (when (eq incidents incio--incidents)
+               (incio--render-incidents incio--incidents))))))))
   (message "Loaded %d incident(s)" (length incio--incidents)))
 
 (defun incio-refresh ()
@@ -314,6 +325,8 @@ FETCH is called with a cache key and a thunk to memoize lookups."
   (interactive)
   (let ((incident (incio--incident-at-point)))
     (unless incident (user-error "No incident on this line"))
+    (unless (incio-incident-alerts incident)
+      (incio-incident-fetch-alerts incident))
     (let ((buffer (get-buffer-create
                    (format "*incio-incident: %s*"
                            (incio-incident-reference incident)))))
