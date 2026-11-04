@@ -213,8 +213,7 @@
       (incio-incident-merge incident "02INC")
       (let ((body (incio--alist-get 'incident captured)))
         (should (equal "s-merged" (incio--alist-get 'incident_status_id body)))
-        (should-not (incio--alist-get 'merged_into_incident_id body))
-        (should (equal "02INC" (incio--alist-get 'merged_into_incident_id captured)))))))
+        (should (equal "02INC" (incio--alist-get 'merged_into_incident_id body)))))))
 
 (ert-deftest incio-test-merge-region-merges-into-first ()
   (let ((a (incio-incident-create :id "A" :reference "INC-1"))

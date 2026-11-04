@@ -271,8 +271,8 @@ VALUE is an alist suitable for a custom field entry value."
   "Merge INCIDENT into TARGET-ID."
   (incio-incident--edit
    incident
-   `((incident_status_id . ,(incio--alist-get 'id (incio-incident-status-by-category "merged"))))
-   `((merged_into_incident_id . ,target-id))))
+   `((incident_status_id . ,(incio--alist-get 'id (incio-incident-status-by-category "merged")))
+     (merged_into_incident_id . ,target-id))))
 
 (defun incio-incident-close (incident)
   "Close INCIDENT."
