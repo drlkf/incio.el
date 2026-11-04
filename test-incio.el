@@ -69,7 +69,7 @@
   (let ((incio-incident-list-custom-fields '("Cluster" "Service")))
     (with-temp-buffer
       (incio-incident-list-mode)
-      (should (equal '("Reference" "Status" "Severity" "Cluster" "Service" "Name")
+      (should (equal '("Reference" "Status" "Severity" "Alerts" "Cluster" "Service" "Name")
                      (mapcar #'car tabulated-list-format)))
       (setq incio-incident-list-custom-fields '(("Count" . 5) "Service"))
       (incio--render-incidents
@@ -80,8 +80,8 @@
                          ((custom_field (name . "Count"))
                           (values . [((value_numeric . 3))]))])))))
       (should (equal '(("Count" 5 t) ("Service" 16 t))
-                     (append (seq-subseq tabulated-list-format 3 5) nil)))
-      (should (equal ["" "" "" "3" "api" ""]
+                     (append (seq-subseq tabulated-list-format 4 6) nil)))
+      (should (equal ["" "" "" "" "3" "api" ""]
                      (cadr (car tabulated-list-entries)))))))
 
 (ert-deftest incio-test-list-field-transforms ()
@@ -98,8 +98,8 @@
                       . [((custom_field (name . "Service"))
                           (values . [((value_text . "api"))]))])))))
       (let ((row (cadr (car tabulated-list-entries))))
-        (should (equal "API" (aref row 3)))
-        (should (equal "INC-1:boom" (aref row 4)))))))
+        (should (equal "API" (aref row 4)))
+        (should (equal "INC-1:boom" (aref row 5)))))))
 
 (ert-deftest incio-test-list-column-labels ()
   (let ((incio-incident-list-custom-fields nil)
@@ -110,7 +110,7 @@
     (with-temp-buffer
       (incio-incident-list-mode)
       (incio--render-incidents (list (incio-incident-create)))
-      (should (equal '("Reference" "Status" "Sev" "Name")
+      (should (equal '("Reference" "Status" "Sev" "Alerts" "Name")
                      (mapcar #'car tabulated-list-format)))
       (should (equal 5 (cadr (aref tabulated-list-format 2))))
       (should (equal "x" (aref (cadr (car tabulated-list-entries)) 2))))))
@@ -395,7 +395,7 @@
   (let (args)
     (cl-letf (((symbol-function 'incio--run)
                (lambda (&rest a)
-                 (setq args a)
+                 (unless (member "/v2/incident_alerts" a) (setq args a))
                  "{\"incidents\":[{\"id\":\"1\"}]}\n{\"incidents\":[{\"id\":\"2\"}]}\n")))
       (should (equal '("1" "2")
                      (mapcar #'incio-incident-id
@@ -419,3 +419,13 @@
                      (incio--filter-candidates "custom_field[" fetch)))
       (should (equal '(("custom_field[cf1][one_of]=opt1" . "Core"))
                      (incio--filter-candidates "custom_field[cf1][one_of]=" fetch))))))
+
+(ert-deftest incio-test-incident-alerts-count ()
+  (let ((incident (incio-incident-create :id "inc-1")))
+    (cl-letf (((symbol-function 'incio--run)
+               (lambda (&rest args)
+                 (should (member "incident_id=inc-1" args))
+                 "{\"incident_alerts\":[{\"alert\":{\"status\":\"firing\"}},{\"alert\":{\"status\":\"resolved\"}}]}")))
+      (incio-incident-fetch-alerts incident))
+    (should (equal "1/2" (incio-incident-alerts-count incident)))
+    (should (equal "" (incio-incident-alerts-count (incio-incident-create))))))
