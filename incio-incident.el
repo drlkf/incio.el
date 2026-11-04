@@ -75,7 +75,7 @@
   (mapcar #'incio-incident--parse
           (apply #'incio--run-json
                  (incio-incident--list-args
-                  (or status-categories '("live")) severity-ids sort-by))))
+                  (or status-categories '("triage" "live")) severity-ids sort-by))))
 
 (defun incio-incident--filter-args (filters)
   "Build `inc api' arguments for FILTERS, a list of \"key=value\" strings."
