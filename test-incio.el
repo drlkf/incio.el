@@ -430,3 +430,19 @@
       (incio-incident-fetch-alerts incident))
     (should (equal "1/2" (incio-incident-alerts-count incident)))
     (should (equal "" (incio-incident-alerts-count (incio-incident-create))))))
+
+(ert-deftest incio-test-toggle-alerts ()
+  (let ((incident (incio-incident-create
+                   :id "inc-1" :reference "INC-1"
+                   :alerts '(((status . "firing") (title . "CPU high"))))))
+    (with-temp-buffer
+      (incio-incident-list-mode)
+      (incio--render-incidents (list incident))
+      (goto-char (point-min))
+      (incio-incident-toggle-alerts)
+      (should (search-forward "CPU high" nil t))
+      (should (equal "CPU high" (alist-get 'title (get-text-property (point) 'incio-alert))))
+      (should (eq incident (get-text-property (point) 'tabulated-list-id)))
+      (goto-char (point-min))
+      (incio-incident-toggle-alerts)
+      (should-not (search-forward "CPU high" nil t)))))

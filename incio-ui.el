@@ -15,10 +15,26 @@
 (defvar-local incio--incident nil)
 (defvar-local incio--filters nil)
 (defvar-local incio--all nil)
+(defvar-local incio--expanded nil)
+
+(defcustom incio-alert-format-function #'incio-alert-format
+  "Function called with an alert alist, returning its display line (no newline).
+The line is then given the `incio-alert' text property."
+  :type 'function :group 'incio)
+
+(defun incio-alert-format (alert)
+  (let ((status (or (alist-get 'status alert) "")))
+    (concat "    " (propertize (format "%-9s" status) 'face (incio-alert-face status))
+            (or (alist-get 'title alert) ""))))
+
+(defun incio--alert-line (alert)
+  (propertize (concat (funcall incio-alert-format-function alert) "\n")
+              'incio-alert alert))
 (defvar incio-incident-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map (kbd "RET") #'incio-incident-visit)
+    (define-key map (kbd "TAB") #'incio-incident-toggle-alerts)
     (define-key map (kbd "g") #'incio-refresh)
     (define-key map (kbd "r") #'incio-refresh)
     (define-key map (kbd "s") #'incio-incident-set-status-at-point)
@@ -47,6 +63,7 @@
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map incio-incident-list-mode-map)
     (define-key map (kbd "RET") nil)
+    (define-key map (kbd "TAB") nil)
     map))
 
 (defcustom incio-incident-list-custom-fields nil
@@ -93,6 +110,7 @@ cell string and the incident, and returns the string to display."
   "Major mode for incident.io incidents."
   (setq-local tabulated-list-format (incio--incident-list-format))
   (setq-local tabulated-list-padding 1)
+  (setq-local tabulated-list-printer #'incio--print-entry)
   (tabulated-list-init-header)
   (hl-line-mode 1))
 
@@ -161,12 +179,31 @@ cell string and the incident, and returns the string to display."
               (incio-incident-alerts-count incident) "\n")
       (let ((stripe (incio--stripe-face)) (odd nil))
         (dolist (alert (incio-incident-alerts incident))
-          (insert (if (and odd stripe)
-                      (propertize (concat (alist-get 'title alert) "\n") 'face stripe)
-                    (concat (alist-get 'title alert) "\n")))
+          (let ((line (incio--alert-line alert)))
+            (when (and odd stripe)
+              (add-face-text-property 0 (length line) stripe t line))
+            (insert line))
           (setq odd (not odd)))))
     (insert "\n" (propertize "Summary\n" 'face 'font-lock-comment-face)
             (or (incio-incident-summary incident) "") "\n")))
+
+(defun incio--print-entry (id cols)
+  (tabulated-list-print-entry id cols)
+  (when (member (incio-incident-id id) incio--expanded)
+    (dolist (alert (incio-incident-alerts id))
+      (insert (propertize (incio--alert-line alert) 'tabulated-list-id id)))))
+
+(defun incio-incident-toggle-alerts ()
+  "Show or hide the alerts of the incident at point."
+  (interactive)
+  (let* ((incident (or (tabulated-list-get-id) (user-error "No incident on this line")))
+         (id (incio-incident-id incident)))
+    (if (member id incio--expanded)
+        (setq incio--expanded (delete id incio--expanded))
+      (unless (incio-incident-alerts incident)
+        (incio-incident-fetch-alerts incident))
+      (push id incio--expanded))
+    (tabulated-list-print t)))
 
 (defun incio--render-incidents (incidents)
   (let ((inhibit-read-only t)

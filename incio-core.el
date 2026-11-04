@@ -37,6 +37,12 @@
     (if (facep face) face 'incio-status-default)))
 (defun incio-severity-face (name)
   (or (cdr (assoc (downcase (or name "")) incio-severity-faces)) 'incio-severity-default))
+(defface incio-alert-firing '((t (:inherit error))) "Face for firing alerts." :group 'incio)
+(defface incio-alert-resolved '((t (:inherit success))) "Face for resolved alerts." :group 'incio)
+(defface incio-alert-default '((t (:inherit default))) "Fallback alert status face." :group 'incio)
+(defun incio-alert-face (status)
+  (let ((face (intern (format "incio-alert-%s" (downcase (or status ""))))))
+    (if (facep face) face 'incio-alert-default)))
 
 (defcustom incio-inc-executable "inc"
   "Path to the `inc' executable."
