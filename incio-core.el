@@ -104,7 +104,7 @@
 
 (defvar incio-help-sections
   '(("Navigation" incio-incident-visit incio-refresh incio-incident-browse
-     incio-incident-filter incio-incident-filter-clear incio-incident-list-all incio-help quit-window)
+     incio-incident-filter incio-incident-filter-clear incio-incident-list-all incio-incident-load-more incio-help quit-window)
     ("Incident actions" incio-incident-set-status-at-point
      incio-incident-assign-at-point incio-incident-ack-at-point
      incio-incident-reject-at-point incio-incident-merge-at-point

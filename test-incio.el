@@ -160,12 +160,21 @@
                        (notify_incident_channel . t))
                      captured)))))
 
-(ert-deftest incio-test-fetch-filtered-reads-paginated-pages ()
-  (cl-letf (((symbol-function 'incio--run)
-             (lambda (&rest _)
-               "[{\"incidents\":[{\"id\":\"a\"}]},{\"incidents\":[{\"id\":\"b\"}]}]")))
-    (should (equal '("a" "b")
-                   (mapcar #'incio-incident-id (incio-incident-fetch-filtered nil))))))
+(ert-deftest incio-test-load-more-appends-page ()
+  (with-temp-buffer
+    (incio-incident-list-mode)
+    (cl-letf (((symbol-function 'incio-incident-fetch-alerts-async) #'ignore)
+              ((symbol-function 'incio--run)
+               (lambda (&rest a)
+                 (if (member "after=c1" a)
+                     "{\"incidents\":[{\"id\":\"b\"}],\"pagination_meta\":{}}"
+                   "{\"incidents\":[{\"id\":\"a\"}],\"pagination_meta\":{\"after\":\"c1\"}}"))))
+      (incio-incident-list-all)
+      (should (equal "c1" incio--next-cursor))
+      (incio-incident-load-more)
+      (should (equal '("a" "b") (mapcar #'incio-incident-id incio--incidents)))
+      (should-not incio--next-cursor)
+      (should-error (incio-incident-load-more) :type 'user-error))))
 
 (ert-deftest incio-test-assign-role-edits-incident-with-vector ()
   (let ((incident (incio-incident-create :id "01INC"))
@@ -391,21 +400,12 @@
                    (json-encode (cdr sent))))))
 
 (ert-deftest incio-test-filter-args-unfiltered ()
-  (should (equal '("api" "GET" "/v2/incidents" "--paginate" "--output" "json")
-                 (incio-incident--filter-args nil))))
-
-(ert-deftest incio-test-fetch-filtered-paginated ()
-  (let (args)
-    (cl-letf (((symbol-function 'incio--run)
-               (lambda (&rest a)
-                 (unless (member "/v2/incident_alerts" a) (setq args a))
-                 "{\"incidents\":[{\"id\":\"1\"}]}\n{\"incidents\":[{\"id\":\"2\"}]}\n")))
-      (should (equal '("1" "2")
-                     (mapcar #'incio-incident-id
-                             (incio-incident-fetch-filtered '("mode[one_of]=standard"))))))
+  (let ((incio-incident-page-size 50))
+    (should (equal '("api" "GET" "/v2/incidents" "--field" "page_size=50")
+                   (incio-incident--filter-args nil)))
     (should (equal '("api" "GET" "/v2/incidents" "--field" "mode[one_of]=standard"
-                     "--paginate" "--output" "json")
-                   args))))
+                     "--field" "page_size=50" "--field" "after=X")
+                   (incio-incident--filter-args '("mode[one_of]=standard") "X")))))
 
 (ert-deftest incio-test-filter-candidates ()
   (let ((fetch (lambda (_k thunk) (funcall thunk))))

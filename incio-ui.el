@@ -16,6 +16,7 @@
 (defvar-local incio--filters nil)
 (defvar-local incio--all nil)
 (defvar-local incio--expanded nil)
+(defvar-local incio--next-cursor nil)
 
 (defcustom incio-alert-format-function #'incio-alert-format
   "Function called with an alert alist, returning its display line (no newline).
@@ -54,6 +55,7 @@ The line is then given the `incio-alert' text property."
     (define-key map (kbd "/") #'incio-incident-filter)
     (define-key map (kbd "|") #'incio-incident-filter-clear)
     (define-key map (kbd "*") #'incio-incident-list-all)
+    (define-key map (kbd "+") #'incio-incident-load-more)
     (define-key map (kbd "O") #'incio-schedule-list)
     (define-key map (kbd "?") #'incio-help)
     (define-key map (kbd "q") #'quit-window)
@@ -329,26 +331,41 @@ FETCH is called with a cache key and a thunk to memoize lookups."
 
 (defun incio-incident-refresh ()
   (interactive)
-  (setq mode-name (cond (incio--all "Incio-Incidents[all]")
-                        (incio--filters
-                         (format "Incio-Incidents[%s]" (string-join incio--filters ",")))
-                        (t "Incio-Incidents")))
-  (setq incio--incidents (if (or incio--all incio--filters)
-                             (incio-incident-fetch-filtered incio--filters)
-                           (incio-incident-fetch-list)))
+  (if (or incio--all incio--filters)
+      (let ((page (incio-incident-fetch-page incio--filters)))
+        (setq incio--incidents (car page) incio--next-cursor (cdr page)))
+    (setq incio--incidents (incio-incident-fetch-list) incio--next-cursor nil))
+  (incio--incidents-loaded incio--incidents))
+
+(defun incio-incident-load-more ()
+  "Fetch the next page of incidents and append it to the list."
+  (interactive)
+  (unless incio--next-cursor (user-error "No more incidents"))
+  (let ((page (incio-incident-fetch-page incio--filters incio--next-cursor)))
+    (setq incio--incidents (append incio--incidents (car page))
+          incio--next-cursor (cdr page))
+    (incio--incidents-loaded (car page))))
+
+(defun incio--incidents-loaded (new)
+  "Render the list and fetch alerts for NEW incidents."
+  (setq mode-name (concat (cond (incio--all "Incio-Incidents[all]")
+                                (incio--filters
+                                 (format "Incio-Incidents[%s]" (string-join incio--filters ",")))
+                                (t "Incio-Incidents"))
+                          (if incio--next-cursor "[more]" "")))
   (incio--render-incidents incio--incidents)
-  (let ((buffer (current-buffer))
-        (incidents incio--incidents))
+  (let ((buffer (current-buffer)))
     ;; ponytail: one process and one re-render per incident, batch if lists get large
-    (dolist (incident incidents)
+    (dolist (incident new)
       (incio-incident-fetch-alerts-async
        incident
        (lambda ()
          (when (buffer-live-p buffer)
            (with-current-buffer buffer
-             (when (eq incidents incio--incidents)
+             (when (memq incident incio--incidents)
                (incio--render-incidents incio--incidents))))))))
-  (message "Loaded %d incident(s)" (length incio--incidents)))
+  (message "Loaded %d incident(s)%s" (length incio--incidents)
+           (if incio--next-cursor ", + for more" "")))
 
 (defun incio-refresh ()
   (interactive)

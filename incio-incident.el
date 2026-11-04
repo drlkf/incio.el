@@ -77,11 +77,16 @@
                  (incio-incident--list-args
                   (or status-categories '("triage" "live")) severity-ids sort-by))))
 
-(defun incio-incident--filter-args (filters)
-  "Build `inc api' arguments for FILTERS, a list of \"key=value\" strings."
+(defcustom incio-incident-page-size 50
+  "Number of incidents fetched per page for filtered/all lists."
+  :type 'integer :group 'incio)
+
+(defun incio-incident--filter-args (filters &optional after)
+  "Build `inc api' arguments for one page of FILTERS, starting AFTER cursor."
   (append '("api" "GET" "/v2/incidents")
           (mapcan (lambda (filter) (list "--field" filter)) filters)
-          '("--paginate" "--output" "json")))
+          (list "--field" (format "page_size=%d" incio-incident-page-size))
+          (when after (list "--field" (concat "after=" after)))))
 
 (defun incio--parse-paginated (key output)
   "Return all KEY items from paginated `inc api' OUTPUT."
@@ -96,10 +101,6 @@
           (dolist (page (if (alist-get key data) (list data) data))
             (setq items (append items (alist-get key page))))))
       items)))
-
-(defun incio--api-paginated (key args)
-  "Run `inc api' ARGS with pagination and return all KEY items."
-  (incio--parse-paginated key (apply #'incio--run args)))
 
 (defun incio-incident--alerts-args (incident)
   (list "api" "GET" "/v2/incident_alerts"
@@ -145,12 +146,11 @@ Failures are ignored."
                       'face (if (= resolved (length alerts)) 'incio-alert-resolved 'incio-alert-firing)))
       "")))
 
-(defun incio-incident-fetch-filtered (filters)
-  "Return incidents matching API FILTERS, a list of \"key=value\" strings."
-  (mapcar #'incio-incident--parse
-          (incio--api-paginated
-           'incidents
-           (incio-incident--filter-args filters))))
+(defun incio-incident-fetch-page (filters &optional after)
+  "Return (INCIDENTS . NEXT-CURSOR) for one page of API FILTERS after AFTER."
+  (let ((data (apply #'incio--run-json (incio-incident--filter-args filters after))))
+    (cons (mapcar #'incio-incident--parse (alist-get 'incidents data))
+          (alist-get 'after (alist-get 'pagination_meta data)))))
 
 (defun incio-incident-show (id)
   "Return incident ID or reference, with its alerts."
