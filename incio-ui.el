@@ -4,6 +4,7 @@
 
 (require 'browse-url)
 (require 'cl-lib)
+(require 'color)
 (require 'goto-addr)
 (require 'seq)
 (require 'tabulated-list)
@@ -111,6 +112,11 @@ cell string and the incident, and returns the string to display."
   (when (stringp value)
     (format-time-string "%F %R" (date-to-time value))))
 
+(defun incio--stripe-face ()
+  (let ((bg (face-background 'default nil t)))
+    (when (and bg (color-defined-p bg))
+      `(:background ,(color-lighten-name bg 8) :extend t))))
+
 (defun incio--insert-detail (label value)
   (when value
     (insert (propertize (format "%-18s" (concat label ":"))
@@ -148,13 +154,18 @@ cell string and the incident, and returns the string to display."
       (incio--insert-detail (car role) (cdr role)))
     (dolist (field (incio-incident-custom-fields incident))
       (incio--insert-detail (car field) (cdr field)))
-    (when (incio-incident-alerts incident)
-      (incio--insert-detail "Alerts" (incio-incident-alerts-count incident))
-      (dolist (alert (incio-incident-alerts incident))
-        (insert (format "  [%s] %s\n" (alist-get 'status alert) (alist-get 'title alert)))))
     (incio--insert-detail "Slack" (incio--alist-get 'slack_channel_url raw))
     (incio--insert-detail "Permalink" (incio-incident-permalink incident))
-    (insert (propertize "Summary\n" 'face 'font-lock-comment-face)
+    (when (incio-incident-alerts incident)
+      (insert "\n" (propertize "Alerts " 'face 'font-lock-comment-face)
+              (incio-incident-alerts-count incident) "\n")
+      (let ((stripe (incio--stripe-face)) (odd nil))
+        (dolist (alert (incio-incident-alerts incident))
+          (insert (if (and odd stripe)
+                      (propertize (concat (alist-get 'title alert) "\n") 'face stripe)
+                    (concat (alist-get 'title alert) "\n")))
+          (setq odd (not odd)))))
+    (insert "\n" (propertize "Summary\n" 'face 'font-lock-comment-face)
             (or (incio-incident-summary incident) "") "\n")))
 
 (defun incio--render-incidents (incidents)

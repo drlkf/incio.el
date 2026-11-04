@@ -2,6 +2,8 @@
 
 An Emacs interface to [incident.io](https://incident.io/) using the `inc` CLI.
 
+_This is giga-vibe-coded, use at your own risk._
+
 ## Usage
 
 Install `inc` and authenticate with `inc auth login`, then run:

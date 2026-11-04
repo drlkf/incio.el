@@ -72,10 +72,11 @@
 
 (defun incio-incident-fetch-list (&optional status-categories severity-ids sort-by)
   "Return incidents matching filters."
-  (mapcar #'incio-incident--parse
-          (apply #'incio--run-json
-                 (incio-incident--list-args
-                  (or status-categories '("triage" "live")) severity-ids sort-by))))
+  (incio-incident--with-alerts
+   (mapcar #'incio-incident--parse
+           (apply #'incio--run-json
+                  (incio-incident--list-args
+                   (or status-categories '("triage" "live")) severity-ids sort-by)))))
 
 (defun incio-incident--filter-args (filters)
   "Build `inc api' arguments for FILTERS, a list of \"key=value\" strings."
@@ -105,15 +106,16 @@
                  'incident_alerts
                  (list "api" "GET" "/v2/incident_alerts"
                        "--field" (concat "incident_id=" (incio-incident-id incident))
+                       "--field" "page_size=50"
                        "--paginate" "--output" "json")))))
 
 (defun incio-incident-alerts-count (incident)
   "Return \"RESOLVED/TOTAL\" for INCIDENT alerts, or \"\" when none."
   (let ((alerts (incio-incident-alerts incident)))
     (if alerts
-        (format "%d/%d"
-                (seq-count (lambda (a) (equal "resolved" (alist-get 'status a))) alerts)
-                (length alerts))
+        (let ((resolved (seq-count (lambda (a) (equal "resolved" (alist-get 'status a))) alerts)))
+          (propertize (format "%d/%d" resolved (length alerts))
+                      'face (if (= resolved (length alerts)) 'success 'error)))
       "")))
 
 (defun incio-incident--with-alerts (incidents)
