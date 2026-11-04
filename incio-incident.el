@@ -134,10 +134,11 @@
         (list (incio-incident--parse
                (incio--run-json "incidents" "show" id))))))
 
-(defun incio-incident--edit (incident fields)
-  "Edit INCIDENT with FIELDS via the incident.io edit action."
+(defun incio-incident--edit (incident fields &optional extra)
+  "Edit INCIDENT with FIELDS via the incident.io edit action.
+EXTRA is an alist merged into the top-level request body."
   (incio--api "POST" (format "/v2/incidents/%s/actions/edit" (incio-incident-id incident))
-              `((incident . ,fields) (notify_incident_channel . t))))
+              `((incident . ,fields) (notify_incident_channel . t) ,@extra)))
 
 (defvar incio-incident--statuses nil
   "Cached list of incident statuses.  Set to nil to refetch.")
@@ -246,8 +247,8 @@ VALUE is an alist suitable for a custom field entry value."
   "Merge INCIDENT into TARGET-ID."
   (incio-incident--edit
    incident
-   `((incident_status_id . ,(incio--alist-get 'id (incio-incident-status-by-category "merged")))
-     (merged_into_incident_id . ,target-id))))
+   `((incident_status_id . ,(incio--alist-get 'id (incio-incident-status-by-category "merged"))))
+   `((merged_into_incident_id . ,target-id))))
 
 (defun incio-incident-close (incident)
   "Close INCIDENT."
