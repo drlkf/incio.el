@@ -31,10 +31,13 @@
     ("minor" . incio-severity-minor))
   "Map lowercased severity names to faces."
   :type '(alist :key-type string :value-type face) :group 'incio)
-(defun incio-status-face (category)
-  (let* ((name (downcase (or category "")))
-         (face (intern (format "incio-status-%s" name))))
-    (if (facep face) face 'incio-status-default)))
+(defcustom incio-status-name-faces nil
+  "Map lowercased status names to faces, overriding category faces."
+  :type '(alist :key-type string :value-type face) :group 'incio)
+(defun incio-status-face (category &optional name)
+  (or (cdr (assoc (downcase (or name "")) incio-status-name-faces))
+      (let ((face (intern (format "incio-status-%s" (downcase (or category ""))))))
+        (if (facep face) face 'incio-status-default))))
 (defun incio-severity-face (name)
   (or (cdr (assoc (downcase (or name "")) incio-severity-faces)) 'incio-severity-default))
 (defface incio-alert-firing '((t (:inherit error))) "Face for firing alerts." :group 'incio)

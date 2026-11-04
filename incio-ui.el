@@ -148,7 +148,7 @@ cell string and the incident, and returns the string to display."
     (insert (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
             "  "
             (propertize (or (incio-incident-status-name incident) "")
-                        'face (incio-status-face (incio-incident-status-category incident)))
+                        'face (incio-status-face (incio-incident-status-category incident) (incio-incident-status-name incident)))
             "  "
             (propertize (or (incio-incident-severity-name incident) "")
                         'face (incio-severity-face (incio-incident-severity-name incident)))
@@ -221,7 +221,7 @@ cell string and the incident, and returns the string to display."
                                   (vconcat
                                    (vector (propertize (or (incio-incident-reference incident) "") 'face 'incio-reference)
                                            (propertize (or (incio-incident-status-name incident) "")
-                                                       'face (incio-status-face (incio-incident-status-category incident)))
+                                                       'face (incio-status-face (incio-incident-status-category incident) (incio-incident-status-name incident)))
                                            (propertize (or (incio-incident-severity-name incident) "")
                                                        'face (incio-severity-face (incio-incident-severity-name incident)))
                                            (incio-incident-alerts-count incident))

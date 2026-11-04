@@ -118,6 +118,9 @@
 (ert-deftest incio-test-selects-status-and-severity-faces ()
   (should (eq 'incio-status-live (incio-status-face "live")))
   (should (eq 'incio-status-default (incio-status-face "unknown")))
+  (let ((incio-status-name-faces '(("fixing" . bold))))
+    (should (eq 'bold (incio-status-face "live" "Fixing")))
+    (should (eq 'incio-status-live (incio-status-face "live" "Monitoring"))))
   (should (eq 'incio-severity-major (incio-severity-face "Major")))
   (should (eq 'incio-severity-default (incio-severity-face "P3"))))
 

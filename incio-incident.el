@@ -142,7 +142,7 @@ Failures are ignored."
     (if alerts
         (let ((resolved (seq-count (lambda (a) (equal "resolved" (alist-get 'status a))) alerts)))
           (propertize (format "%d/%d" resolved (length alerts))
-                      'face (if (= resolved (length alerts)) 'success 'error)))
+                      'face (if (= resolved (length alerts)) 'incio-alert-resolved 'incio-alert-firing)))
       "")))
 
 (defun incio-incident-fetch-filtered (filters)
