@@ -58,6 +58,10 @@ Each element is a field or role name, or (NAME . WIDTH)."
 Transforms stay keyed on NAME."
   :type '(alist :key-type string :value-type string) :group 'incio)
 
+(defcustom incio-incident-list-column-widths nil
+  "Width overrides for incident list columns, as (NAME . WIDTH)."
+  :type '(alist :key-type string :value-type integer) :group 'incio)
+
 (defcustom incio-incident-list-field-transforms nil
   "Transforms applied to incident list cells.
 Each element is (COLUMN-NAME . FUNCTION); FUNCTION is called with the
@@ -78,8 +82,9 @@ cell string and the incident, and returns the string to display."
 (defun incio--incident-list-format (&optional columns)
   (cl-map 'vector
           (lambda (col)
-            (cons (or (cdr (assoc (car col) incio-incident-list-column-labels)) (car col))
-                  (cdr col)))
+            (cl-list* (or (cdr (assoc (car col) incio-incident-list-column-labels)) (car col))
+                      (or (cdr (assoc (car col) incio-incident-list-column-widths)) (cadr col))
+                      (cddr col)))
           (or columns (incio--incident-list-columns))))
 
 (define-derived-mode incio-incident-list-mode tabulated-list-mode "Incio-Incidents"
