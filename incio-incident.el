@@ -92,7 +92,9 @@
           (json-key-type 'symbol) (json-false nil) (json-null nil)
           incidents)
       (while (progn (skip-chars-forward " \t\n") (not (eobp)))
-        (setq incidents (append incidents (alist-get 'incidents (json-read)))))
+        (let ((data (json-read)))
+          (dolist (page (if (alist-get 'incidents data) (list data) data))
+            (setq incidents (append incidents (alist-get 'incidents page))))))
       (mapcar #'incio-incident--parse incidents))))
 
 (defun incio-incident-show (id)

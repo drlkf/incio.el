@@ -157,6 +157,13 @@
                        (notify_incident_channel . t))
                      captured)))))
 
+(ert-deftest incio-test-fetch-filtered-reads-paginated-pages ()
+  (cl-letf (((symbol-function 'incio--run)
+             (lambda (&rest _)
+               "[{\"incidents\":[{\"id\":\"a\"}]},{\"incidents\":[{\"id\":\"b\"}]}]")))
+    (should (equal '("a" "b")
+                   (mapcar #'incio-incident-id (incio-incident-fetch-filtered nil))))))
+
 (ert-deftest incio-test-assign-role-edits-incident-with-vector ()
   (let ((incident (incio-incident-create :id "01INC"))
         (captured nil))
