@@ -451,8 +451,34 @@ FETCH is called with a cache key and a thunk to memoize lookups."
       (incio-incident-reject incident)
       (incio-refresh))))
 
+(defun incio--incidents-in-region (beg end)
+  (save-excursion
+    (goto-char beg)
+    (let (incidents)
+      (while (and (< (point) end) (not (eobp)))
+        (when-let ((id (tabulated-list-get-id))) (push id incidents))
+        (forward-line 1))
+      (nreverse incidents))))
+
+(defun incio-incident-merge-region (beg end)
+  (let* ((incidents (incio--incidents-in-region beg end))
+         (target (car incidents))
+         (sources (cdr incidents)))
+    (unless sources (user-error "Select at least two incidents"))
+    (when (yes-or-no-p (format "Merge %s into %s? "
+                               (mapconcat #'incio-incident-reference sources ", ")
+                               (incio-incident-reference target)))
+      (dolist (i sources) (incio-incident-merge i (incio-incident-id target)))
+      (deactivate-mark)
+      (incio-refresh))))
+
 (defun incio-incident-merge-at-point ()
   (interactive)
+  (if (and (use-region-p) (derived-mode-p 'tabulated-list-mode))
+      (incio-incident-merge-region (region-beginning) (region-end))
+    (incio-incident-merge-single)))
+
+(defun incio-incident-merge-single ()
   (let ((incident (incio--incident-at-point)))
     (unless incident (user-error "No incident on this line"))
     (let* ((candidates (seq-remove (lambda (i) (eq i incident)) incio--incidents))

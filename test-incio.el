@@ -215,6 +215,24 @@
         (should (equal "s-merged" (incio--alist-get 'incident_status_id body)))
         (should (equal "02INC" (incio--alist-get 'merged_into_incident_id body)))))))
 
+(ert-deftest incio-test-merge-region-merges-into-first ()
+  (let ((a (incio-incident-create :id "A" :reference "INC-1"))
+        (b (incio-incident-create :id "B" :reference "INC-2"))
+        (c (incio-incident-create :id "C" :reference "INC-3"))
+        merged)
+    (with-temp-buffer
+      (tabulated-list-mode)
+      (setq tabulated-list-format [("Ref" 10 nil)])
+      (setq tabulated-list-entries
+            (list (list a ["INC-1"]) (list b ["INC-2"]) (list c ["INC-3"])))
+      (tabulated-list-print)
+      (cl-letf (((symbol-function 'yes-or-no-p) #'always)
+                ((symbol-function 'incio-refresh) #'ignore)
+                ((symbol-function 'incio-incident-merge)
+                 (lambda (i target) (push (cons (incio-incident-id i) target) merged))))
+        (incio-incident-merge-region (point-min) (point-max))
+        (should (equal '(("B" . "A") ("C" . "A")) (nreverse merged)))))))
+
 (ert-deftest incio-test-status-by-category-errors-when-missing ()
   (let ((incio-incident--statuses '(((id . "s-live") (category . "live")))))
     (should-error (incio-incident-status-by-category "declined") :type 'user-error)))
