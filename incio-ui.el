@@ -65,7 +65,6 @@ The line is then given the `incio-alert' text property."
 (defvar incio-incident-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map incio-incident-list-mode-map)
-    (define-key map (kbd "RET") nil)
     (define-key map (kbd "TAB") nil)
     map))
 
@@ -392,18 +391,20 @@ FETCH is called with a cache key and a thunk to memoize lookups."
 
 (defun incio-incident-visit ()
   (interactive)
-  (let ((incident (incio--incident-at-point)))
-    (unless incident (user-error "No incident on this line"))
-    (unless (incio-incident-alerts incident)
-      (incio-incident-fetch-alerts incident))
-    (let ((buffer (get-buffer-create
-                   (format "*incio-incident: %s*"
-                           (incio-incident-reference incident)))))
-      (with-current-buffer buffer
-        (incio-incident-mode)
-        (setq incio--incident incident)
-        (incio--render-incident incident)
-        (pop-to-buffer buffer)))))
+  (if-let* ((url (and (derived-mode-p 'incio-incident-mode) (thing-at-point 'url t))))
+      (browse-url url)
+    (let ((incident (incio--incident-at-point)))
+      (unless incident (user-error "No incident on this line"))
+      (unless (incio-incident-alerts incident)
+        (incio-incident-fetch-alerts incident))
+      (let ((buffer (get-buffer-create
+                     (format "*incio-incident: %s*"
+                             (incio-incident-reference incident)))))
+        (with-current-buffer buffer
+          (incio-incident-mode)
+          (setq incio--incident incident)
+          (incio--render-incident incident)
+          (pop-to-buffer buffer))))))
 
 (defun incio-incident-browse ()
   (interactive)
