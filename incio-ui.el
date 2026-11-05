@@ -6,6 +6,7 @@
 (require 'cl-lib)
 (require 'color)
 (require 'goto-addr)
+(require 'markdown-mode)
 (require 'seq)
 (require 'tabulated-list)
 (require 'incio-incident)
@@ -67,6 +68,10 @@ The line is then given the `incio-alert' text property."
     (define-key map (kbd "RET") nil)
     (define-key map (kbd "TAB") nil)
     map))
+
+(defcustom incio-incident-render-markdown t
+  "Non-nil means render the incident summary as markdown."
+  :type 'boolean :group 'incio)
 
 (defcustom incio-incident-list-custom-fields nil
   "Custom fields or roles shown as extra columns in the incident list.
@@ -187,7 +192,17 @@ cell string and the incident, and returns the string to display."
             (insert line))
           (setq odd (not odd)))))
     (insert "\n" (propertize "Summary\n" 'face 'font-lock-comment-face)
-            (or (incio-incident-summary incident) "") "\n")))
+            (let ((summary (or (incio-incident-summary incident) "")))
+              (if incio-incident-render-markdown (incio--markdown summary) summary))
+            "\n")))
+
+(defun incio--markdown (text)
+  "Return TEXT fontified as GitHub-flavored markdown."
+  (with-temp-buffer
+    (insert text)
+    (delay-mode-hooks (gfm-view-mode))
+    (font-lock-ensure)
+    (buffer-string)))
 
 (defun incio--print-entry (id cols)
   (tabulated-list-print-entry id cols)

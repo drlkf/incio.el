@@ -1,6 +1,6 @@
 ;;; incio.el --- Interact with incident.io -*- lexical-binding: t; -*-
 
-;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
+;; Package-Requires: ((emacs "27.1") (transient "0.3.0") (markdown-mode "2.5"))
 ;; URL: https://github.com/drlkf/incio.el
 
 ;;; Code:
