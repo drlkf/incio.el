@@ -77,6 +77,10 @@
                      (assignee (name . "Bob") (email . "bob@x.com"))))))))
     (should (eq 'incio-current-user (get-text-property 0 'face (cdr (assoc "Lead" roles)))))
     (should-not (get-text-property 0 'face (cdr (assoc "Comms" roles))))
+    (should (equal '("alice@x.com" "bob@x.com")
+                   (mapcar (lambda (u) (alist-get 'email u))
+                           (incio--current-user-first
+                            '(((email . "bob@x.com")) ((email . "alice@x.com")))))))
     (let ((incio-current-user "bob"))
       (should (get-text-property 0 'face (cdr (assoc "Comms" (incio-incident-roles
                                                               (incio-incident-create

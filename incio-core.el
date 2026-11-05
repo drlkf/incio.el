@@ -74,6 +74,11 @@
            (equal (downcase incio--current-user-cache)
                   (car (split-string email "@")))))))
 
+(defun incio--current-user-first (users)
+  "Return USERS with the current user moved first."
+  (let ((me (seq-filter #'incio--current-user-p users)))
+    (append me (seq-difference users me #'eq))))
+
 (define-error 'incio-error "incident.io error")
 (define-error 'incio-not-authenticated "Not authenticated with incident.io"
               'incio-error)

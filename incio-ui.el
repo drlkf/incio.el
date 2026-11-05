@@ -439,7 +439,9 @@ FETCH is called with a cache key and a thunk to memoize lookups."
                                                    (incio--alist-get 'name u)
                                                    (incio--alist-get 'email u)))
                                users))
-           (user-name (completing-read "Assignee: " user-names nil t))
+           (user-name (completing-read "Assignee: " user-names nil t nil nil
+                                       (and users (incio--current-user-p (car users))
+                                            (car user-names))))
            (user (nth (seq-position user-names user-name) users)))
       (when (yes-or-no-p (format "Assign %s to %s? " role-name user-name))
         (incio-incident-assign-role incident (incio--alist-get 'id role) (incio--alist-get 'id user))

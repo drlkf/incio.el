@@ -407,7 +407,7 @@
   "Pick one of ITEMS, shown with LABEL, prompting only when needed."
   (if (cdr items)
       (let ((choices (mapcar (lambda (i) (cons (funcall label i) i)) items)))
-        (cdr (assoc (completing-read prompt choices nil t) choices)))
+        (cdr (assoc (completing-read prompt choices nil t nil nil (caar choices)) choices)))
     (car items)))
 
 (defun incio--schedule-read-time (prompt default)
@@ -437,8 +437,9 @@
                     (user-error "Rotation has no layer")))
          (user (incio--schedule-pick
                 "User: "
-                (seq-uniq (alist-get 'users rotation)
-                          (lambda (a b) (equal (alist-get 'id a) (alist-get 'id b))))
+                (incio--current-user-first
+                 (seq-uniq (alist-get 'users rotation)
+                           (lambda (a b) (equal (alist-get 'id a) (alist-get 'id b)))))
                 (lambda (u) (format "%s <%s>" (alist-get 'name u) (alist-get 'email u)))))
          (start (incio--schedule-read-time
                  "Start (ISO 8601): "

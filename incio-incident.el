@@ -190,7 +190,7 @@ EXTRA is an alist merged into the top-level request body."
 
 (defun incio-users ()
   "Return the list of users."
-  (incio--run-json "users" "list" "--limit" "0"))
+  (incio--current-user-first (incio--run-json "users" "list" "--limit" "0")))
 
 (defun incio-incident-set-status (incident status-id)
   "Set INCIDENT's status to STATUS-ID."
