@@ -43,8 +43,12 @@
 
 (defun incio-incident-roles (incident)
   (mapcar (lambda (assignment)
-            (cons (incio--alist-get 'name (incio--alist-get 'role assignment))
-                  (incio--alist-get 'name (incio--alist-get 'assignee assignment))))
+            (let* ((assignee (incio--alist-get 'assignee assignment))
+                   (name (incio--alist-get 'name assignee)))
+              (cons (incio--alist-get 'name (incio--alist-get 'role assignment))
+                    (if (and name (incio--current-user-p assignee))
+                        (propertize name 'face 'incio-current-user)
+                      name))))
           (incio-incident-role-assignments incident)))
 
 (defun incio-incident-custom-fields (incident)

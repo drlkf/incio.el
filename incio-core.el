@@ -51,6 +51,29 @@
   "Path to the `inc' executable."
   :type 'string :group 'incio)
 
+(defface incio-current-user '((t (:inherit highlight :weight bold)))
+  "Face for the current user in incident columns." :group 'incio)
+
+(defcustom incio-current-user nil
+  "Email or name of the current user.  When nil, use `inc auth status'."
+  :type '(choice (const nil) string) :group 'incio)
+
+(defvar incio--current-user-cache 'unset)
+
+(defun incio--current-user-p (user)
+  "Return non-nil when USER alist (name, email) is the current user."
+  (let ((email (downcase (or (alist-get 'email user) "")))
+        (name (downcase (or (alist-get 'name user) ""))))
+    (if incio-current-user
+        (member (downcase incio-current-user) (list email name))
+      (when (eq incio--current-user-cache 'unset)
+        (setq incio--current-user-cache
+              (ignore-errors
+                (alist-get 'name (alist-get 'identity (incio--run-json "auth" "status"))))))
+      (and incio--current-user-cache
+           (equal (downcase incio--current-user-cache)
+                  (car (split-string email "@")))))))
+
 (define-error 'incio-error "incident.io error")
 (define-error 'incio-not-authenticated "Not authenticated with incident.io"
               'incio-error)

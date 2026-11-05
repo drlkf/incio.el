@@ -65,6 +65,25 @@
     (should (equal nil (incio-incident-roles incident)))
     (should (equal nil (incio-incident-custom-fields incident)))))
 
+(ert-deftest incio-test-highlights-current-user-role ()
+  (let* ((incio-current-user nil)
+         (incio--current-user-cache "Alice")
+         (roles (incio-incident-roles
+                 (incio-incident-create
+                  :role-assignments
+                  '(((role (name . "Lead"))
+                     (assignee (name . "Alice A") (email . "alice@x.com")))
+                    ((role (name . "Comms"))
+                     (assignee (name . "Bob") (email . "bob@x.com"))))))))
+    (should (eq 'incio-current-user (get-text-property 0 'face (cdr (assoc "Lead" roles)))))
+    (should-not (get-text-property 0 'face (cdr (assoc "Comms" roles))))
+    (let ((incio-current-user "bob"))
+      (should (get-text-property 0 'face (cdr (assoc "Comms" (incio-incident-roles
+                                                              (incio-incident-create
+                                                               :role-assignments
+                                                               '(((role (name . "Comms"))
+                                                                  (assignee (name . "Bob")))))))))))))
+
 (ert-deftest incio-test-list-custom-field-columns ()
   (let ((incio-incident-list-custom-fields '("Cluster" "Service")))
     (with-temp-buffer
