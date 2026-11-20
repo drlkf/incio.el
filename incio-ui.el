@@ -471,12 +471,8 @@ FETCH is called with a cache key and a thunk to memoize lookups."
   (interactive)
   (let ((incident (incio--incident-at-point)))
     (unless incident (user-error "No incident on this line"))
-    (let* ((severities (incio-severities))
-           (name (completing-read "Severity: "
-                                  (mapcar (lambda (s) (incio--alist-get 'name s)) severities)
-                                  nil t nil nil (incio-incident-severity-name incident)))
-           (severity (seq-find (lambda (s) (equal name (incio--alist-get 'name s))) severities)))
-      (incio--edit-at-point incident (format "severity %s" name)
+    (let ((severity (incio-read-severity (incio-incident-severity-name incident))))
+      (incio--edit-at-point incident (format "severity %s" (incio--alist-get 'name severity))
                             `((severity_id . ,(incio--alist-get 'id severity)))))))
 
 (defun incio-incident-set-timestamp-at-point ()

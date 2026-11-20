@@ -193,8 +193,24 @@ EXTRA is an alist merged into the top-level request body."
   (incio--current-user-first (incio--run-json "users" "list" "--limit" "0")))
 
 (defun incio-incident-set-status (incident status-id)
-  "Set INCIDENT's status to STATUS-ID."
-  (incio-incident--edit incident `((incident_status_id . ,status-id))))
+  "Set INCIDENT's status to STATUS-ID.
+Prompt for a severity when leaving triage without one, as the API requires it."
+  (let* ((status (seq-find (lambda (s) (equal status-id (incio--alist-get 'id s)))
+                           (incio-incident-statuses)))
+         (severity (and (not (incio-incident-severity incident))
+                        (member (incio--alist-get 'category status) '("live" "learning" "closed"))
+                        (incio-read-severity))))
+    (incio-incident--edit incident
+                          `((incident_status_id . ,status-id)
+                            ,@(and severity `((severity_id . ,(incio--alist-get 'id severity))))))))
+
+(defun incio-read-severity (&optional default)
+  "Prompt for a severity, defaulting to DEFAULT name, and return its alist."
+  (let* ((severities (incio-severities))
+         (name (completing-read "Severity: "
+                                (mapcar (lambda (s) (incio--alist-get 'name s)) severities)
+                                nil t nil nil default)))
+    (seq-find (lambda (s) (equal name (incio--alist-get 'name s))) severities)))
 
 (defun incio-incident-assign-role (incident role-id user-id)
   "Assign USER-ID to ROLE-ID on INCIDENT."

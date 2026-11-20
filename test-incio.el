@@ -175,6 +175,7 @@
 
 (ert-deftest incio-test-set-status-edits-incident ()
   (let ((incident (incio-incident-create :id "01INC"))
+        (incio-incident--statuses '(((id . "status-1") (category . "triage"))))
         (captured nil))
     (cl-letf (((symbol-function 'incio--api)
                (lambda (_method _path &optional fields) (setq captured fields))))
@@ -182,6 +183,19 @@
       (should (equal '((incident . ((incident_status_id . "status-1")))
                        (notify_incident_channel . t))
                      captured)))))
+
+(ert-deftest incio-test-set-status-live-prompts-severity ()
+  (let ((incident (incio-incident-create :id "01INC"))
+        (incio-incident--statuses '(((id . "s-live") (category . "live"))))
+        (captured nil))
+    (cl-letf (((symbol-function 'incio--api)
+               (lambda (_method _path &optional fields) (setq captured fields)))
+              ((symbol-function 'incio-severities)
+               (lambda () '(((id . "sev-1") (name . "Major")))))
+              ((symbol-function 'completing-read) (lambda (&rest _) "Major")))
+      (incio-incident-set-status incident "s-live")
+      (should (equal '((incident_status_id . "s-live") (severity_id . "sev-1"))
+                     (alist-get 'incident captured))))))
 
 (ert-deftest incio-test-load-more-appends-page ()
   (with-temp-buffer
@@ -216,7 +230,7 @@
   (let ((incio-incident--statuses
          '(((id . "s-live") (name . "Live") (category . "live"))
            ((id . "s-declined") (name . "Declined") (category . "declined"))))
-        (incident (incio-incident-create :id "01INC"))
+        (incident (incio-incident-create :id "01INC" :severity '((id . "sev-1"))))
         (captured nil))
     (cl-letf (((symbol-function 'incio--api)
                (lambda (_method _path &optional fields) (setq captured fields))))
